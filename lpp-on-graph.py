@@ -49,12 +49,19 @@ def graphgen(N,directed=True):
             # i tried to store vertex names as tuples, but it confuses it
             if dbg >= 3 and ((i*j + 1) % 100 == 0):
                 print(i,j)
-            # try to add two vertices
-            g = try_addvertex(g,tuplestr(i+1,j))
-            g = try_addvertex(g,tuplestr(i,j+1))
+
+            # add vertex to the right of current
+            g.add_vertex(tuplestr(i+1,j))
+            # since iterating over columns first, do casework to add vertex above it.
+            if i == 0:
+                g.add_vertex(tuplestr(i,j+1))
+            elif j == N-1:
+                g.add_vertex(tuplestr(i,j+1))
+
             # once vertices are added if necessary
             g.add_edges([(tuplestr(i,j),tuplestr(i+1,j)),\
                     (tuplestr(i,j),tuplestr(i,j+1))])
+
     #return ig.Graph.Lattice([N,N],circular=False)
     return g
 
@@ -63,7 +70,8 @@ def graphgen(N,directed=True):
 # edge weights are easy to use in igraphs library.
 # wts = np.random.exponential(size=(2*N*(N-1)))
 
-def vertex_weights(g,wtfun,lpp=True):
+def vertex_weights(wtfun,lpp=True):
+    global N
     # iterate over vertices, select successor edges for each vertex, and assign edge weight
     # it's a little inefficient
     # must pass a graph and a weight function like np.random.exponential.
@@ -71,49 +79,61 @@ def vertex_weights(g,wtfun,lpp=True):
     #Oct 23 2017 Just double the edge weights now, and the sampling algorithm will be 
     # very fast.
 
-    
-    wt = list(-wtfun(size=int(g.vcount()/2) ))
+    # very specific to this graph and the lattice. Can easily be generalized. This particular graph will always have an integer number of vertices.
+    # there are N**2 vertices, and each has two outgoing edges.
+    wt = list(-wtfun(size=N**2))
+
     # interleave the two lists to make adjacent edges have equal weights
-    wt = [ val for pair in zip(wt) for val in pair ]
+    wt = [ val for pair in zip(wt,wt) for val in pair ]
+
     if not lpp:
         # then its fpp; make the weights positive. 
         wt = [ x * (-1) for x in wt ]
 
-    for x in g.vs:
-        vwt = wt.pop() # get a weight for a vertex
-        for y in g.es.select(_source=x.index):
-            y["weight"] = vwt
-    return g
-
-def main_loop(number_of_vertices=100):
-    global N,g
-    N = number_of_vertices
-    import pdb; pdb.set_trace()
-    g = graphgen(N)
-    g = vertex_weights(g)
+    return wt
 
 def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
     # the extra minus sign is taken into account in the return statement.
-    global N,g
+    global N,g,edgewts
+    # check N
+    try:
+        N
+    except:
+        N = number_of_vertices
+
+    # check graph
     try:
         # hopefully g and N are globally defined. These are used in graph gen.
-        N,g
+        g
+        # if g exists, check that it came from our lattice generated algorithm with the correct N
+        if not N ** 2 + 2*N == g.vcount():
+            import time
+            print("Started regenerating graph")
+            stime = time.time()
+            g = graphgen(N)
+            print("Ended regenerating graph.",time.time() - stime)
     except:
+        import time
+        print("Started generating graph.")
+        stime = time.time()
         g = graphgen(N)
-        print("Done generating graph")
+        print("Ended generating graph.",time.time() - stime)
 
     # generate weights
-    g = vertex_weights(g,wtfun=wtfun)
+    edgewts = vertex_weights(wtfun=wtfun)
     if dbg >= 2:
         print("Done Generating weights")
+        print("Generated " + str(len(edgewts)) + " weights")
 
     # since we're finding last passage times you need to add an extra minus sign in the shortest path.
-    times = g.shortest_paths_dijkstra(source=[tuplestr(0,0),tuplestr(1,0),tuplestr(2,0),],target=tuplestr(N-1,N-1),weights='weight')
+    times = g.shortest_paths_dijkstra(source=[tuplestr(0,0),tuplestr(1,0),tuplestr(2,0)],target=tuplestr(N-1,N-1),weights=edgewts)
 
     # flatten times list using chain
     from itertools import chain
     times = list(chain.from_iterable(times))
+    if dbg >= 2:
+        print("times:", times)
 
     #b2 = g.shortest_paths_dijkstra(tuplestr(2,0),target=tuplestr(N-1,N-1),weights='weight')[0][0] - \
             #g.shortest_paths_dijkstra(tuplestr(1,0),target=tuplestr(N-1,N-1),weights='weight')[0][0]
