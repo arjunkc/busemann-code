@@ -41,9 +41,16 @@ def try_addvertex(g,name):
     return g
 
 def graphgen(N,directed=True,noigraph_gen=False):
-    # i want to generate a graph with names. igraph does not check for uniqueness.
-    #Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first.
-    # noigraph_gen simply retuns edges and vertices
+    """
+    This function creates a directed lattice in d=2 where edges go up or right.
+    The ig.Graph.Lattice function does not appear to create directed graphs well.
+    Use plot_graph to test with a small N.
+    igraph does not check for uniqueness when adding vertices by name.
+    Oct 25 2017 The for loop in this function is very slow. An iterator that yields is definitely better
+    since the for loop is run by the igraph creation routine.
+    Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first.
+    noigraph_gen simply retuns edges and vertices
+    """
 
     verts = []
     edges = []
