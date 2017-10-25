@@ -40,7 +40,7 @@ def try_addvertex(g,name):
         g.add_vertex(name=name)
     return g
 
-def graphgen(N,directed=True,noigraph_gen=True):
+def graphgen(N,directed=True,noigraph_gen=False):
     # i want to generate a graph with names. igraph does not check for uniqueness.
     #Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first.
     # noigraph_gen simply retuns edges and vertices
@@ -60,7 +60,6 @@ def graphgen(N,directed=True,noigraph_gen=True):
                 verts.append(tuplestr(i,j+1))
             edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
                     (tuplestr(i,j),tuplestr(i,j+1))]
-            
 
     if not noigraph_gen:
         g = ig.Graph(directed=directed)

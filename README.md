@@ -32,6 +32,16 @@ Other useful functions include
 
 # Changelog
 
+Oct 25 2017 Now testing graph generation speeds and seeing what's the slow step. I wonder if it's the igraph step. It certainly seems like it, since graphgen2 took 748 seconds (this calls `g.add_vertex()` everytime) and graphgen that creates the vertex list runs in 176 seconds for N=300. This generally seems to be the case.
+
+    N = 100     graphgen1 1s    graphgen2 6s
+
+The bulk of the time is taken to run through the loop and create the vertex list. So the loop is pretty slow, I guess, maybe because it's pure python. Maybe it's better to get the 
+
+    graph.add_vertices()
+
+algorithm to run through its own loop, since that is probably written in C?
+
 Oct 24 2017 It seems to indicate negative correlations for even the uniform distribution. To check the code to see if it's giving the right answers.
 
 Oct 24 2017 It runs really fast now for about a 1000 runs on a graph of size 100. The step that takes the longest is the graph generation. I'm fine with this for now.
