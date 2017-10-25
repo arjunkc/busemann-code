@@ -231,10 +231,10 @@ def save_to_file(runs):
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
-def plot_busemann_hist(ret=False):
+def plot_busemann_hist(bins=10,ret=False):
     global bus1
 
-    h = np.histogram(bus1,density=True)
+    h = np.histogram(bus1,bins=bins,density=True)
     # contains the left and right ends of the bins. So h[0] has one less element than h[1]
     x = (h[1][0:len(h[1])-1] + h[1][1:len(h[1])])/2
     y = h[0]

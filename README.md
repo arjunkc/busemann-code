@@ -10,15 +10,20 @@ The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You 
 # To run this code
 
     exec(open('lpp-on-graph.py').read())
-    run_find_busemanns(number_of_vertices=N)
+    run_find_busemanns(runs=1000,number_of_vertices=100)
 
-This will run it N times, and store two pairs of correlation functions bus1, and bus2. The function will also save the busemann data to a file.
+This will run it 1000 times on a 100 x 100 grid with exponentially distributed passage times. 
+It computes two pairs of functions bus1 and bus2, which corresponds the following differences of passage times:
+
+$$ B_1 = T(0,Ne) - T(e_1,Ne), \quad B_2 = T(e_1,Ne) - T(2e_1,Ne)$$
+
+where $e_1 = (1,0)$ and $e = e_1 + e_2$. Here, the passage time $T$ is the maximal sum of weights encountered on up-right paths between the two vertices. The two functions $B_1$ and $B_2$ correspond to Busemann functions. The method will also save the busemann data to a file.
 
 The function
 
     plot_busemann_histograms()
 
-will plot the density of the busemann function. For exponentially distributed weights with rate $1$, this busemann function should be Exp(1/2) distributed. This is because I'm considering passage times from $0$ to $N,N$.
+will plot the density (histogram) of the busemann function. For exponentially distributed weights with rate $1$, this busemann function should be Exp(1/2) distributed. This is because I'm considering passage times from $0$ to $N,N$.
 
 You can test the correlations of the two Busemanns using
 
@@ -31,6 +36,8 @@ Other useful functions include
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
 
 # Notes/Changelog
+
+Oct 25 2017 Todo: The busemann function for uniform weights looks like a Gamma. Could a gamma with certain parameters fit it?
 
 Oct 25 2017 Todo: check the Busemann function for edge weights. Is it still exponential? Need to write an `edge_weights` function for this. Quite easy to do. Wonder what the Busemann function for uniform is?
 
