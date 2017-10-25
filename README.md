@@ -2,7 +2,7 @@
 
 Runs Dijkstra from the igraph library on the directed two dimensional lattice with weights. 
 
-We're currently testing my hypothesis that Busemann functions ought to be negatively correlated.
+We're currently testing a hypothesis that Busemann functions ought to be negatively correlated.
 Busemann functions are differences of passage times (weighted shortest paths) between 3 vertices (Really it's the infinite version of such differences).
 
 The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You can also set the weight function using for the random weights.
@@ -30,7 +30,9 @@ Other useful functions include
 1.  `vertex_weights`
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
 
-# Changelog
+# Notes/Changelog
+
+Oct 25 2017 Todo: check the Busemann function for edge weights. Is it still exponential? Need to write an `edge_weights` function for this. Quite easy to do. Wonder what the Busemann function for uniform is?
 
 Oct 25 2017 Now testing graph generation speeds and seeing what's the slow step. I wonder if it's the igraph step. It certainly seems like it, since graphgen2 took 748 seconds (this calls `g.add_vertex()` everytime) and graphgen that creates the vertex list runs in 176 seconds for N=300. This generally seems to be the case.
 
