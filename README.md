@@ -37,6 +37,17 @@ Other useful functions include
 
 # Notes/Changelog
 
+Oct 25 2017 I implemented the vertices and edges as generators, and its an order of a magnitude faster!!
+
+    In [213]: timeit.Timer(stmt='g = graphgen(100)',globals=globals()).timeit(number=1)
+    Out[213]: 0.3496230710297823
+
+    In [214]: timeit.Timer(stmt='g = graphgen(100,asgenerator=False)',globals=globals()).timeit(number=1)
+    Out[214]: 1.1191907830070704
+
+    In [215]: timeit.Timer(stmt='g = graphgen2(100)',globals=globals()).timeit(number=1)
+    Out[215]: 7.132349282968789
+
 Oct 25 2017 Todo: The busemann function for uniform weights looks like a Gamma. Could a gamma with certain parameters fit it?
 
 Oct 25 2017 Todo: check the Busemann function for edge weights. Is it still exponential? Need to write an `edge_weights` function for this. Quite easy to do. Wonder what the Busemann function for uniform is?

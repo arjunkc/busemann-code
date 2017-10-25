@@ -40,7 +40,24 @@ def try_addvertex(g,name):
         g.add_vertex(name=name)
     return g
 
-def graphgen(N,directed=True,noigraph_gen=False):
+def vertgen(N):
+    i,j = 0,0
+    for i in range(0,N):
+        for j in range(0,N):
+            yield tuplestr(i,j)
+    for k in range(0,N):
+        yield tuplestr(k,N)
+    for k in range(0,N):
+        yield tuplestr(N,k)
+
+def edgegen(N):
+    i,j = 0,0
+    for i in range(0,N):
+        for j in range(0,N):
+            for k in [(i+1,j),(i,j+1)]:
+                yield (tuplestr(i,j),tuplestr(k))
+
+def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     """
     This function creates a directed lattice in d=2 where edges go up or right.
     The ig.Graph.Lattice function does not appear to create directed graphs well.
@@ -52,22 +69,25 @@ def graphgen(N,directed=True,noigraph_gen=False):
     noigraph_gen simply retuns edges and vertices
     """
 
-    verts = []
-    edges = []
-    for i in range(0,N):
-        for j in range(0,N):
-            # i tried to store vertex names as tuples, but it confuses it
-            if dbg >= 3 and ((i*j + 1) % 100 == 0):
-                print(i,j)
-            verts.append(tuplestr(i,j))
-            # conditional addition of vertex above i,j
-            if i == N-1:
-                verts.append(tuplestr(i+1,j))
-            if j == N-1:
-                verts.append(tuplestr(i,j+1))
-            edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
-                    (tuplestr(i,j),tuplestr(i,j+1))]
-
+    if asgenerator:
+        verts = vertgen(N)
+        edges = edgegen(N)
+    else:
+        verts = []
+        edges = []
+        for i in range(0,N):
+            for j in range(0,N):
+                # i tried to store vertex names as tuples, but it confuses it
+                if dbg >= 3 and ((i*j + 1) % 100 == 0):
+                    print(i,j)
+                verts.append(tuplestr(i,j))
+                # conditional addition of vertex above i,j
+                if i == N-1:
+                    verts.append(tuplestr(i+1,j))
+                if j == N-1:
+                    verts.append(tuplestr(i,j+1))
+                edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
+                        (tuplestr(i,j),tuplestr(i,j+1))]
     if not noigraph_gen:
         g = ig.Graph(directed=directed)
         g.add_vertices(verts)
@@ -110,14 +130,15 @@ def plot_graph(g):
 
 
 def vertex_weights(wtfun,lpp=True):
-    global N
     # iterate over vertices, select successor edges for each vertex, and assign edge weight
+    # could implement this as a generator
     # it's a little inefficient
     # must pass a graph and a weight function like np.random.exponential.
     # wtfun must take an optional size argument.
     #Oct 23 2017 Just double the edge weights now, and the sampling algorithm will be 
     # very fast.
 
+    global N
     # very specific to this graph and the lattice. Can easily be generalized. This particular graph will always have an integer number of vertices.
     # there are N**2 vertices, and each has two outgoing edges.
     wt = list(-wtfun(size=N**2))
@@ -130,6 +151,8 @@ def vertex_weights(wtfun,lpp=True):
         wt = [ x * (-1) for x in wt ]
 
     return wt
+
+
 
 def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
