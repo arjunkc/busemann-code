@@ -199,6 +199,8 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
 
     bus1 = []
     bus2 = []
+    import time
+    stime = time.time()
     for x in range(0,runs):
         if dbg >= 3 and x % 2 == 0:
             print("run: ",x)
@@ -213,6 +215,8 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
 
     if save:
         save_to_file(runs)
+
+    print("Runtime in seconds: ", time.time() - stime)
 
 def save_to_file(runs):
     global bus1,bus2,mywtfun,N
@@ -239,12 +243,23 @@ def plot_busemann_hist(bins=10,ret=False):
     x = (h[1][0:len(h[1])-1] + h[1][1:len(h[1])])/2
     y = h[0]
     yexp = np.exp(-x/2)*(1/2)
-    l1, = plt.plot(x,y,'-r')
-    l2, = plt.plot(x,yexp,'-b')
-    plt.legend([l1,l2],['busemann histogram','exp(1/2)'])
+
     if ret:
         return (x,y,yexp)
 
+    # otherwise make me a plot
+    l1, = plt.plot(x,y,'-r')
+    l2, = plt.plot(x,yexp,'-b')
+    plt.legend([l1,l2],['busemann histogram','exp(1/2)'])
+
+def gammapdf(x,shape,scale):
+            return gamma.pdf(x,shape,scale=scale)
+
+def gamma_fit(x,y):
+    import scipy.optimize as opt
+    from scipy.stats import gamma
+    popt,pcov = opt.curve_fit(gammapdf,x,y,p0=(1,1))
+    return popt
 
 def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False):
     # indicator funs to test correlations  
