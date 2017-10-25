@@ -40,8 +40,40 @@ def try_addvertex(g,name):
         g.add_vertex(name=name)
     return g
 
-def graphgen(N,directed=True):
+def graphgen(N,directed=True,noigraph_gen=True):
     # i want to generate a graph with names. igraph does not check for uniqueness.
+    #Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first.
+    # noigraph_gen simply retuns edges and vertices
+
+    verts = []
+    edges = []
+    for i in range(0,N):
+        for j in range(0,N):
+            # i tried to store vertex names as tuples, but it confuses it
+            if dbg >= 3 and ((i*j + 1) % 100 == 0):
+                print(i,j)
+            verts.append(tuplestr(i,j))
+            # conditional addition of vertex above i,j
+            if i == N-1:
+                verts.append(tuplestr(i+1,j))
+            if j == N-1:
+                verts.append(tuplestr(i,j+1))
+            edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
+                    (tuplestr(i,j),tuplestr(i,j+1))]
+            
+
+    if not noigraph_gen:
+        g = ig.Graph(directed=directed)
+        g.add_vertices(verts)
+        g.add_edges(edges)
+        # ig.Graph.Lattice doesn't do directed graphs.
+        # return ig.Graph.Lattice([N,N],circular=False)
+        return g
+    else:
+        return verts,edges
+
+def graphgen2(N,directed=True):
+    # this is a graph gen version that uses g.add_vertex instead of g.add_vertices.
     g = ig.Graph(directed=directed)
     g.add_vertex(name=tuplestr(0,0))
     for i in range(0,N):
@@ -65,10 +97,11 @@ def graphgen(N,directed=True):
     #return ig.Graph.Lattice([N,N],circular=False)
     return g
 
-# finds shortest paths with edge weights. needs 2N(N-1) weights.
+def plot_graph(g):
+    # testing function that allows you to plot the directed graph
+    layout = g.layout_fruchterman_reingold()
+    ig.plot(g,layout = layout).show()
 
-# edge weights are easy to use in igraphs library.
-# wts = np.random.exponential(size=(2*N*(N-1)))
 
 def vertex_weights(wtfun,lpp=True):
     global N
@@ -95,19 +128,32 @@ def vertex_weights(wtfun,lpp=True):
 def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
     # the extra minus sign is taken into account in the return statement.
-    global N,g,edgewts
+
+    # these global variables will be set by this function. should be moved to main_loop
+    global N,g,edgewts,mywtfun
+
     # check N
     try:
         N
     except:
         N = number_of_vertices
 
+    try:
+        mywtfun()
+        # if I can call this function
+    except:
+        # set global mywtfun to wtfun
+        mywtfun = wtfun
+    else:
+        # then continue
+        wtfun = mywtfun
+
     # check graph
     try:
         # hopefully g and N are globally defined. These are used in graph gen.
         g
-        # if g exists, check that it came from our lattice generated algorithm with the correct N
-        if not N ** 2 + 2*N == g.vcount():
+        # if g exists, check that it came from our lattice generated algorithm with the correct N. The number of edges should be 2N^2 since there are N^2 vertices
+        if not 2 * (N ** 2) == g.ecount():
             import time
             print("Started regenerating graph")
             stime = time.time()
@@ -160,13 +206,22 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
         bus2.append(q)
 
     if save:
-        import shelve,datetime
-        d = datetime.datetime.today().isoformat()
-        filename = 'busemanns-runs-' + str(runs) + '-N-' \
-                + str(N) + '-' + d + '.shelf'
-        with shelve.open(filename,'c') as shelf:
-            shelf['busemanns'] = (bus1,bus2)
-            shelf['N'] = N
+        save_to_file(runs)
+
+def save_to_file(runs):
+    global bus1,bus2,mywtfun,N
+
+    import shelve,datetime
+    d = datetime.datetime.today().isoformat()
+
+    filename = 'busemanns-runs-' + str(runs) + '-N-' + str(N) \
+            + '-' + mywtfun.__name__ + '-' \
+            + d + '.shelf'
+
+    with shelve.open(filename,'c') as shelf:
+        shelf['busemanns'] = (bus1,bus2)
+        shelf['N'] = N
+        shelf['wtfun'] = mywtfun
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
@@ -187,9 +242,9 @@ def plot_busemann_hist(ret=False):
 
 def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False):
     # indicator funs to test correlations  
-    ind12 = lambda x,y: 1.0 if x <= ind_params[0] and y <= ind_params[1] else 0.0
-    ind1 = lambda x: 1.0 if x <= ind_params[0] else 0.0
-    ind2 = lambda x: 1.0 if x <= ind_params[1] else 0.0
+    ind12 = lambda x,y: 1.0 if x >= ind_params[0] and y >= ind_params[1] else 0.0
+    ind1 = lambda x: 1.0 if x >= ind_params[0] else 0.0
+    ind2 = lambda x: 1.0 if x >= ind_params[1] else 0.0
 
     probs = np.array([ [ind12(a,b),ind1(a),ind2(b)] for a,b in zip(bus1,bus2) ])
     n = len(probs)
@@ -217,3 +272,4 @@ def import_from_file(filename):
         except:
             print("no N = size of grid defined")
             shelf.close()
+

@@ -32,7 +32,9 @@ Other useful functions include
 
 # Changelog
 
-Oct 24 2017 It runs really fast now for about a 1000 runs on a graph of size 100. The step that takes the longest is the graph generation. I'm fine with this. 
+Oct 24 2017 It seems to indicate negative correlations for even the uniform distribution. To check the code to see if it's giving the right answers.
+
+Oct 24 2017 It runs really fast now for about a 1000 runs on a graph of size 100. The step that takes the longest is the graph generation. I'm fine with this for now.
 
 Previously, the slowest step was the vertex weight generation, that took up to a minute. This is because I was doing something stupid.
 
