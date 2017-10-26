@@ -161,22 +161,6 @@ def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
     # these global variables will be set by this function. should be moved to main_loop
     global N,g,edgewts,mywtfun
 
-    # check N
-    try:
-        N
-    except:
-        N = number_of_vertices
-
-    try:
-        mywtfun()
-        # if I can call this function
-    except:
-        # set global mywtfun to wtfun
-        mywtfun = wtfun
-    else:
-        # then continue
-        wtfun = mywtfun
-
     # check graph
     try:
         # hopefully g and N are globally defined. These are used in graph gen.
@@ -218,7 +202,24 @@ def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
 
 def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
     # runs the find_busemann function several times.
-    global bus1,bus2,N,dbg,filename
+    global bus1,bus2,N,dbg,filename,mywtfun
+
+    # check N
+    try:
+        N
+    except:
+        N = number_of_vertices
+
+    try:
+        mywtfun()
+        # if I can call this function
+    except:
+        # set global mywtfun to wtfun
+        print("Using weight function:",wtfun.__name__)
+        mywtfun = wtfun
+    else:
+        # then continue
+        print("Using weight function:",mywtfun.__name__)
 
     bus1 = []
     bus2 = []
@@ -232,7 +233,7 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
         elif dbg >= 1 and x % 50 == 0:
             print("run: ",x)
 
-        p,q = find_busemanns(number_of_vertices=N) 
+        p,q = find_busemanns(number_of_vertices=N,wtfun=mywtfun) 
         bus1.append(p)
         bus2.append(q)
 
@@ -258,8 +259,9 @@ def save_to_file(runs):
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
-def plot_busemann_hist(bins=10,ret=False):
-    global bus1
+def plot_busemann_hist(bus1,bins=10,ret=False,bars=False):
+    global mywtfun,N
+
 
     h = np.histogram(bus1,bins=bins,density=True)
     # contains the left and right ends of the bins. So h[0] has one less element than h[1]
@@ -271,9 +273,19 @@ def plot_busemann_hist(bins=10,ret=False):
         return (x,y,yexp)
 
     # otherwise make me a plot
-    l1, = plt.plot(x,y,'-r')
-    l2, = plt.plot(x,yexp,'-b')
-    plt.legend([l1,l2],['busemann histogram','exp(1/2)'])
+    if not bars:
+        l1, = plt.plot(x,y,'-r')
+        plt.legend([l1],['busemann histogram, ' + mywtfun.__name__ + ' wts'])
+        plt.title('N = ' + str(N))
+    else:
+        # this density simply normalizes it
+        plt.hist(bus1,bins=bins,density=True)
+        plt.title('N = ' + str(N) + ', ' + mywtfun.__name__ + ' wts')
+
+    if mywtfun.__name__ == 'exponential':
+        l2, = plt.plot(x,yexp,'-b')
+        yexp = np.exp(-x/2)*(1/2)
+        plt.legend([l2],['exp(1/2)'])
 
 def gammapdf(x,shape,scale):
             return gamma.pdf(x,shape,scale=scale)
@@ -301,19 +313,48 @@ def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False):
     # i guess variance of indicators is p1 * (1 - p1)
     corr = cov / np.sqrt(p1 * (1-p1) * p2 * (1-p2))
 
-    print('p12,p1,p2,cov,correlation',p12,p1,p2,cov,corr)
     if ret:
-        return probs
+        return p12,p1,p2,cov,corr
+
+    for x,y in zip(['p12','p1','p2','covariance','correlation coeff'],[p12,p1,p2,cov,corr]):
+            print(x,': ',y)
+
+def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance'):
+    global mywtfun
+    minr = min(bus1+bus2)
+    maxr = max(bus1+bus2)
+    x = np.linspace(minr,maxr,plotpoints)
+    y = []
+    samples = len(bus1)
+    for a in x:
+        p12,p1,p2,cov,corr = test_indep(bus1,bus2,ind_params=(a,a),ret=True)
+        if plottype == 'covariance':
+            y.append(cov)
+        elif plottype == 'correlation':
+            y.append(corr)
+
+    l1, = plt.plot(x,y,'-r')
+    plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + samples)
+    plt.legend([ l1 ],[ plottype ])
 
 def import_from_file(filename):
-    global bus1,bus2,N
+    global bus1,bus2,N,mywtfun
 
     import shelve
     with shelve.open(filename,'r') as shelf:
         bus1,bus2 = shelf['busemanns']
+        mywtfun = shelf['wtfun']
         try:
             N = shelf['N']
         except:
             print("no N = size of grid defined")
             shelf.close()
+        try:
+            shelf['g']
+        except:
+            print('No graph saved to file')
+        else:
+            g = shelf['g']
 
+def absnormal(*args,**kargs):
+    return abs(np.random.normal(*args,**kargs))    
