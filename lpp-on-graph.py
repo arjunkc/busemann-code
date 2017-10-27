@@ -154,7 +154,7 @@ def vertex_weights(wtfun,lpp=True):
 
 
 
-def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
+def find_busemanns(number_of_vertices=100,svs=[(0,0),(1,0),(1,0),(2,0)],wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
     # the extra minus sign is taken into account in the return statement.
 
@@ -186,7 +186,8 @@ def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
         print("Generated " + str(len(edgewts)) + " weights")
 
     # since we're finding last passage times you need to add an extra minus sign in the shortest path.
-    times = g.shortest_paths_dijkstra(source=[tuplestr(0,0),tuplestr(1,0),tuplestr(2,0)],target=tuplestr(N-1,N-1),weights=edgewts)
+
+    times = g.shortest_paths_dijkstra(source=[ tuplestr(x) for x in svs],target=tuplestr(N-1,N-1),weights=edgewts)
 
     # flatten times list using chain
     from itertools import chain
@@ -197,10 +198,10 @@ def find_busemanns(number_of_vertices=100,wtfun=np.random.exponential):
     #b2 = g.shortest_paths_dijkstra(tuplestr(2,0),target=tuplestr(N-1,N-1),weights='weight')[0][0] - \
             #g.shortest_paths_dijkstra(tuplestr(1,0),target=tuplestr(N-1,N-1),weights='weight')[0][0]
     # the subtraction takes into account that i've multiplied the weights by -1
-    return times[2] - times[1], times[1] - times[0]
+    return  times[1] - times[0], times[3] - times[2],
 
 
-def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
+def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential, **kwargs):
     # runs the find_busemann function several times.
     global bus1,bus2,N,dbg,filename,mywtfun
 
@@ -233,7 +234,7 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
         elif dbg >= 1 and x % 50 == 0:
             print("run: ",x)
 
-        p,q = find_busemanns(number_of_vertices=N,wtfun=mywtfun) 
+        p,q = find_busemanns(number_of_vertices=N,wtfun=mywtfun,**kwargs) 
         bus1.append(p)
         bus2.append(q)
 
@@ -243,7 +244,7 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
     print("Runtime in seconds: ", time.time() - stime)
 
 def save_to_file(runs):
-    global bus1,bus2,mywtfun,N,g
+    global bus1,bus2,mywtfun,N,g,svs
 
     import shelve,datetime
     d = datetime.datetime.today().isoformat()
@@ -257,6 +258,7 @@ def save_to_file(runs):
         shelf['N'] = N
         shelf['wtfun'] = mywtfun.__name__
         shelf['g'] = g
+        shelf['svs'] = svs
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
