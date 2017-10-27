@@ -243,7 +243,7 @@ def run_find_busemanns(runs=1000, save=True, wtfun=np.random.exponential):
     print("Runtime in seconds: ", time.time() - stime)
 
 def save_to_file(runs):
-    global bus1,bus2,mywtfun,N
+    global bus1,bus2,mywtfun,N,g
 
     import shelve,datetime
     d = datetime.datetime.today().isoformat()
@@ -255,7 +255,8 @@ def save_to_file(runs):
     with shelve.open(filename,'c') as shelf:
         shelf['busemanns'] = (bus1,bus2)
         shelf['N'] = N
-        shelf['wtfun'] = mywtfun
+        shelf['wtfun'] = mywtfun.__name__
+        shelf['g'] = g
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
@@ -296,7 +297,7 @@ def gamma_fit(x,y):
     popt,pcov = opt.curve_fit(gammapdf,x,y,p0=(1,1))
     return popt
 
-def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False):
+def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False, printout=True):
     # indicator funs to test correlations  
     ind12 = lambda x,y: 1.0 if x >= ind_params[0] and y >= ind_params[1] else 0.0
     ind1 = lambda x: 1.0 if x >= ind_params[0] else 0.0
@@ -311,31 +312,50 @@ def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False):
 
     cov = p12  -  p1 * p2
     # i guess variance of indicators is p1 * (1 - p1)
-    corr = cov / np.sqrt(p1 * (1-p1) * p2 * (1-p2))
+    if 0 < p1 < 1 and 0 < p1 < 1:
+        corr = cov / np.sqrt(p1 * (1-p1) * p2 * (1-p2))
+    else:
+        corr = nan
 
+    if printout:
+        for x,y in zip(['p12','p1','p2','covariance','correlation coeff'],[p12,p1,p2,cov,corr]):
+                print(x,': ',y)
+    
     if ret:
         return p12,p1,p2,cov,corr
 
-    for x,y in zip(['p12','p1','p2','covariance','correlation coeff'],[p12,p1,p2,cov,corr]):
-            print(x,': ',y)
-
-def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance'):
+def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False):
     global mywtfun
-    minr = min(bus1+bus2)
-    maxr = max(bus1+bus2)
+    minr = max(min(bus1),min(bus2)) 
+    maxr = min(max(bus1),max(bus2))
     x = np.linspace(minr,maxr,plotpoints)
     y = []
+
+    # disable debugging
+    if dbg >= 2:
+        import ipdb
+        ipdb.set_trace()
+
     samples = len(bus1)
+    x1 = list(x)
     for a in x:
-        p12,p1,p2,cov,corr = test_indep(bus1,bus2,ind_params=(a,a),ret=True)
+        p12,p1,p2,cov,corr = test_indep(bus1,bus2,ind_params=(a,a),ret=True,printout=printout)
         if plottype == 'covariance':
             y.append(cov)
         elif plottype == 'correlation':
-            y.append(corr)
+            if isnan(corr):
+                # since x is linspaces, we can assume a is unique
+                # this is a dirty rotten hack to remove nans  
+                x1.remove(a)
+            else:
+                y.append(corr)
 
-    l1, = plt.plot(x,y,'-r')
-    plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + samples)
+    l1, = plt.plot(x1,y,'-r')
+    plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples))
     plt.legend([ l1 ],[ plottype ])
+
+    if ret:
+        return x1,y
 
 def import_from_file(filename):
     global bus1,bus2,N,mywtfun
@@ -343,7 +363,15 @@ def import_from_file(filename):
     import shelve
     with shelve.open(filename,'r') as shelf:
         bus1,bus2 = shelf['busemanns']
-        mywtfun = shelf['wtfun']
+        try:
+            eval(shelf['wtfun'])
+        except:
+            print("Error importing wtfun. manually set mywtfun. might need to import numpy.")
+            import traceback
+            traceback.print_exc(file=sys.stdout)
+        else:
+            mywtfun = eval(shelf['wtfun'])
+
         try:
             N = shelf['N']
         except:
