@@ -16,11 +16,11 @@ try:
 except:
     dbg = 0
 
+default_svs = [(0,0),(1,0),(1,0),(2,0)]
+
 def strtuple(s):
     # convert into a tuple
     return tuple( [ int(x) for x in s.split(",") ] )
-
-default_svs = [(0,0),(1,0),(1,0),(2,0)]
 
 def tuplestr(*x):
     # flatten allows you to call tuplestr((1,2)) and tuple(1,2)
@@ -152,7 +152,7 @@ def vertex_weights(wtfun,lpp=True):
 
     return wt
 
-def find_busemanns(number_of_vertices=100,svs=[(0,0),(1,0),(1,0),(2,0)],wtfun=np.random.exponential):
+def find_busemanns(number_of_vertices=100,svs=default_svs,wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
     # the extra minus sign is taken into account in the return statement.
 
@@ -182,6 +182,8 @@ def find_busemanns(number_of_vertices=100,svs=[(0,0),(1,0),(1,0),(2,0)],wtfun=np
     if dbg >= 2:
         print("Done Generating weights")
         print("Generated " + str(len(edgewts)) + " weights")
+        print("Using source vertices:", svs)
+        print("Using wtfun:", wtfun.__name__)
 
     # since we're finding last passage times you need to add an extra minus sign in the shortest path.
 
@@ -199,9 +201,9 @@ def find_busemanns(number_of_vertices=100,svs=[(0,0),(1,0),(1,0),(2,0)],wtfun=np
     return  times[1] - times[0], times[3] - times[2],
 
 
-def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential, **kwargs):
+def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,**kwargs):
     # runs the find_busemann function several times.
-    global bus1,bus2,N,dbg,filename,mywtfun
+    global bus1,bus2,N,dbg,filename,mywtfun,mysvs
 
     # check N
     try:
@@ -219,6 +221,16 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
     else:
         # then continue
         print("Using weight function:",mywtfun.__name__)
+
+    try:
+        mysvs  
+    except:
+        # if not set
+        print("Using default source vertices for busemann functions", default_svs)
+        mysvs = default_svs
+    else:
+        print("Using the following source vertices for busemann functions", mysvs)
+    kwargs['svs'] = mysvs
 
     bus1 = []
     bus2 = []
@@ -240,9 +252,18 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         save_to_file(runs)
 
     print("Runtime in seconds: ", time.time() - stime)
+    
+def print_keys_in_file(f):
+    """
+    Simple function that prints keys inside a shelf
+    Takes 1 argument: a string f containing a filename or a file object.
+    """
+    with shelve.open(f,'r') as shelf:
+        for x in shelf.keys():
+            print(x)
 
 def save_to_file(runs):
-    global bus1,bus2,mywtfun,N,g,svs
+    global bus1,bus2,mywtfun,N,g,mysvs,default_svs
 
     import shelve,datetime
     d = datetime.datetime.today().isoformat()
@@ -256,7 +277,13 @@ def save_to_file(runs):
         shelf['N'] = N
         shelf['wtfun'] = mywtfun.__name__
         shelf['g'] = g
-        shelf['svs'] = svs
+        try:
+            mysvs
+        except:
+            shelf['svs'] = default_svs
+        else:
+            shelf['svs'] = mysvs
+
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
@@ -324,7 +351,12 @@ def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False, printout=True):
     if ret:
         return p12,p1,p2,cov,corr
 
-def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False):
+def find_corr(bus1,bus2):
+    prd = [ x*y for (x,y) in zip(bus1,bus2) ]
+    print("covariance: ", np.mean(prd) - np.mean(bus1)*np.mean(bus2))
+    print("correlation coeff: ", np.corrcoef(bus1,bus2))
+
+def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
     global mywtfun
     minr = max(min(bus1),min(bus2)) 
     maxr = min(max(bus1),max(bus2))
@@ -350,7 +382,7 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,pri
             else:
                 y.append(corr)
 
-    l1, = plt.plot(x1,y,'-r')
+    l1, = plt.plot(x1,y,**kwargs)
     plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples))
     plt.legend([ l1 ],[ plottype ])
 
@@ -358,7 +390,7 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,pri
         return x1,y
 
 def import_from_file(filename):
-    global bus1,bus2,N,mywtfun
+    global bus1,bus2,N,mywtfun,g,svs,default_svs,mysvs
 
     import shelve
     with shelve.open(filename,'r') as shelf:
@@ -370,29 +402,47 @@ def import_from_file(filename):
             print("no N = size of grid defined")
             shelf.close()
 
-        # weight function defined.
+        # weight function defined. I could have saved the function, or I could have saved the name.
         try:
-            eval(shelf['wtfun'])
+            shelf['wtfun']
         except:
             print("Error importing wtfun. manually set mywtfun.")
             print("might also need to import numpy if wtfun is from numpy.")
             import traceback
             traceback.print_exc(file=sys.stdout)
         else:
-            mywtfun = eval(shelf['wtfun'])
+            # there are two types. either callable or just the function name. 
+            # this checks for both
+            if callable(shelf['wtfun']):
+                mywtfun = shelf['wtfun']
+            else:
+                mywtfun = eval(shelf['wtfun'])
+            print("Found wtfun", mywtfun.__name__)
+
+        try:
+            mysvs = shelf['svs']
+        except:
+            mysvs = default_svs
+            print("source vertices not set. svs set to default: ", mysvs)
+        else:
+            print("source vertices found. svs set to: ", mysvs)
 
         try:
             N = shelf['N']
         except:
             print("no N = size of grid defined")
             shelf.close()
+        else:
+            print("Found N = ", N)
         # graph
         try:
             shelf['g']
         except:
             print('No graph saved to file')
         else:
+            # this is a little slow
             g = shelf['g']
+            print('Found graph corresponding to N = ', np.sqrt(g.ecount()/2) )
 
 def absnormal(*args,**kargs):
     return abs(np.random.normal(*args,**kargs))    
