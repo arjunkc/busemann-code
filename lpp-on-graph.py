@@ -16,11 +16,11 @@ try:
 except:
     dbg = 0
 
-randfun = lambda : np.random.exponential(scale=1.0)
-
 def strtuple(s):
     # convert into a tuple
     return tuple( [ int(x) for x in s.split(",") ] )
+
+default_svs = [(0,0),(1,0),(1,0),(2,0)]
 
 def tuplestr(*x):
     # flatten allows you to call tuplestr((1,2)) and tuple(1,2)
@@ -151,8 +151,6 @@ def vertex_weights(wtfun,lpp=True):
         wt = [ x * (-1) for x in wt ]
 
     return wt
-
-
 
 def find_busemanns(number_of_vertices=100,svs=[(0,0),(1,0),(1,0),(2,0)],wtfun=np.random.exponential):
     # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
@@ -365,10 +363,19 @@ def import_from_file(filename):
     import shelve
     with shelve.open(filename,'r') as shelf:
         bus1,bus2 = shelf['busemanns']
+        # number of grid pts
+        try:
+            N = shelf['N']
+        except:
+            print("no N = size of grid defined")
+            shelf.close()
+
+        # weight function defined.
         try:
             eval(shelf['wtfun'])
         except:
-            print("Error importing wtfun. manually set mywtfun. might need to import numpy.")
+            print("Error importing wtfun. manually set mywtfun.")
+            print("might also need to import numpy if wtfun is from numpy.")
             import traceback
             traceback.print_exc(file=sys.stdout)
         else:
@@ -379,6 +386,7 @@ def import_from_file(filename):
         except:
             print("no N = size of grid defined")
             shelf.close()
+        # graph
         try:
             shelf['g']
         except:
