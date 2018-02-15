@@ -200,7 +200,6 @@ def find_busemanns(number_of_vertices=100,svs=default_svs,wtfun=np.random.expone
     # the subtraction takes into account that i've multiplied the weights by -1
     return  times[1] - times[0], times[3] - times[2],
 
-
 def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,**kwargs):
     # runs the find_busemann function several times.
     global bus1,bus2,N,dbg,filename,mywtfun,mysvs
@@ -351,16 +350,52 @@ def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False, printout=True):
     if ret:
         return p12,p1,p2,cov,corr
 
-def find_corr(bus1,bus2):
+def find_corr(bus1,bus2,ret=True):
     prd = [ x*y for (x,y) in zip(bus1,bus2) ]
-    print("covariance: ", np.mean(prd) - np.mean(bus1)*np.mean(bus2))
-    print("correlation coeff: ", np.corrcoef(bus1,bus2))
+    cor = np.corrcoef(bus1,bus2)
+    cov = np.mean(prd) - np.mean(bus1)*np.mean(bus2)
+    print("covariance: ", cov)
+    print("correlation coeff: ", cor[0,1])
+    if ret:
+        return (cov,cor[0,1]
+
+# following does not work as yet.
+#def ind12(x,y,(bus1,bus2)):
+    #y = [ 1.0 if b1 >= x and b2 >= y else 0.9 for (b1,b2) in zip(bus1,bus2) ]
+    #return sum(y)/len(bus1)
+
+# following does not work as yet.
+#def ind(x,bus1):
+    #y = [ 1.0 if b1 >= x for b1 in bus1 ]
+    #return sum(y)/len(bus1)
+
+#def plot3d_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
+    #global mywtfun
+    #minr = max(min(bus1),min(bus2)) 
+    #maxr = min(max(bus1),max(bus2))
+    #delta = (maxr-minr)/plotpoints
+    #xax = np.linspace(minr + delta,maxr - delta,plotpoints)
+    #yax = np.linspace(minr + delta,maxr - delta,plotpoints)
+    #x,y = np.meshgrid(xax,yax)
+#
+    ## lambda and vectorize
+    #l12 = lambda x,y : ind12(x,y,(bus1,bus2))
+    #e12 = np.vectorize(ind12)
+#
+    #l1 = lambda x,y : ind(x,bus1) * ind(y,bus2)
+    #e1  = np.vectorize(l1)
+#
+    #z12 = e12(x,y) 
+    #z1 = e12(x,y)
+    #return z12,z1
+
 
 def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
     global mywtfun
     minr = max(min(bus1),min(bus2)) 
     maxr = min(max(bus1),max(bus2))
-    x = np.linspace(minr,maxr,plotpoints)
+    delta = (maxr-minr)/plotpoints
+    x = np.linspace(minr + delta,maxr - delta,plotpoints)
     y = []
 
     # disable debugging
@@ -384,7 +419,8 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,pri
 
     l1, = plt.plot(x1,y,**kwargs)
     plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples))
-    plt.legend([ l1 ],[ plottype ])
+    #plt.legend([ l1 ],[ plottype ])
+    plt.legend() # legend controlled by plt.legend() keyword
 
     if ret:
         return x1,y

@@ -37,6 +37,12 @@ Other useful functions include
 
 # Notes/Changelog
 
+Feb 15 2018 Working on plot 3d correlations. The functions ind12 and ind1 do not work, and have been commented out. I'm simply going to test the busemann correlation hypothesis. The busemanns appear to be negatively correlated as far as I can tell.
+
+Nov 01 2017 Plot 3d correlations or contour plot. return to `plot3d_correlations`.
+
+Oct 31 2017 Somehow it's not coming up as positively associated in the simulations. There is a telling correlation coefficient image that indicates that the exponential is independent, more or less. The absnormal and uniform are of course fairly strongly correlated. But at some critical point, the correlation coefficient suddently turns negative.
+
 Oct 27 2017 Added a bunch of other functions.
 
     strtuple                string to tuple of the form (i,j) used for coordinates
