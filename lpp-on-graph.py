@@ -128,7 +128,6 @@ def plot_graph(g):
     layout = g.layout_fruchterman_reingold()
     ig.plot(g,layout = layout).show()
 
-
 def vertex_weights(wtfun,lpp=True):
     # iterate over vertices, select successor edges for each vertex, and assign edge weight
     # could implement this as a generator
@@ -152,32 +151,11 @@ def vertex_weights(wtfun,lpp=True):
 
     return wt
 
-def find_busemanns(number_of_vertices=100,svs=default_svs,wtfun=np.random.exponential):
-    # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
+def find_busemanns(g,N,wtfun,svs):
+    # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give it a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
     # the extra minus sign is taken into account in the return statement.
 
-    # these global variables will be set by this function. should be moved to main_loop
-    global N,g,edgewts,mywtfun
-
-    # check graph
-    try:
-        # hopefully g and N are globally defined. These are used in graph gen.
-        g
-        # if g exists, check that it came from our lattice generated algorithm with the correct N. The number of edges should be 2N^2 since there are N^2 vertices
-        if not 2 * (N ** 2) == g.ecount():
-            import time
-            print("Started regenerating graph")
-            stime = time.time()
-            g = graphgen(N)
-            print("Ended regenerating graph.",time.time() - stime)
-    except:
-        import time
-        print("Started generating graph.")
-        stime = time.time()
-        g = graphgen(N)
-        print("Ended generating graph.",time.time() - stime)
-
-    # generate weights
+    # generate random weights using wtfun
     edgewts = vertex_weights(wtfun=wtfun)
     if dbg >= 2:
         print("Done Generating weights")
@@ -200,37 +178,49 @@ def find_busemanns(number_of_vertices=100,svs=default_svs,wtfun=np.random.expone
     # the subtraction takes into account that i've multiplied the weights by -1
     return  times[1] - times[0], times[3] - times[2],
 
-def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,**kwargs):
-    # runs the find_busemann function several times.
+def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,svs=default_svs):
+    """
+    Sets the following global variables/parameters for the computation.
+    N:  This sets the size of the N by N grid. Can be set using number_of_vertices in run_find_busemanns.
+    mysvs: These are different from the default source vertices, also a global. You can set this using the keyword argument svs=[(x,y),(p,q),(a,b),(n,m)]. 
+    mywtfun: Set using wtfun= in run_find_busemanns.
+    bus1,bus2: Busemann values. Usually set when you import from a file, or you've run a simulation.
+    Then it calls find_busemanns runs number of times. Sets global variables first.
+    Then it saves to a shelf if save=True
+    """
+    # set global variables first
     global bus1,bus2,N,dbg,filename,mywtfun,mysvs
 
-    # check N
-    try:
-        N
-    except:
-        N = number_of_vertices
+    # vertices
+    N = number_of_vertices
 
+    print("Using weight function:",wtfun.__name__)
+    mywtfun = wtfun
+
+    print("Using source vertices for busemann functions", svs)
+    mysvs = svs
+
+    # check graph
     try:
-        mywtfun()
-        # if I can call this function
+        # hopefully g and N are globally defined. These are used in graph gen.
+        g
+        # if g exists, check that it came from our lattice generated algorithm with the correct N. The number of edges should be 2N^2 since there are N^2 vertices
+        if not 2 * (N ** 2) == g.ecount():
+            import time
+            print("Started regenerating graph")
+            stime = time.time()
+            g = graphgen(N)
+            print("Ended regenerating graph.",time.time() - stime)
     except:
-        # set global mywtfun to wtfun
-        print("Using weight function:",wtfun.__name__)
-        mywtfun = wtfun
+        import time
+        print("Started generating graph.")
+        stime = time.time()
+        g = graphgen(N)
+        print("Ended generating graph.",time.time() - stime)
     else:
-        # then continue
-        print("Using weight function:",mywtfun.__name__)
+        print("Graph found, (hopefully) roughly corresponds to N x N grid with N =  ", int(np.sqrt(g.vcount())-1))
 
-    try:
-        mysvs  
-    except:
-        # if not set
-        print("Using default source vertices for busemann functions", default_svs)
-        mysvs = default_svs
-    else:
-        print("Using the following source vertices for busemann functions", mysvs)
-    kwargs['svs'] = mysvs
-
+    # begin running find_busemanns
     bus1 = []
     bus2 = []
     import time
@@ -243,7 +233,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         elif dbg >= 1 and x % 50 == 0:
             print("run: ",x)
 
-        p,q = find_busemanns(number_of_vertices=N,wtfun=mywtfun,**kwargs) 
+        p,q = find_busemanns(g,N,wtfun,svs) 
         bus1.append(p)
         bus2.append(q)
 
@@ -261,34 +251,40 @@ def print_keys_in_file(f):
         for x in shelf.keys():
             print(x)
 
-def save_to_file(runs):
-    global bus1,bus2,mywtfun,N,g,mysvs,default_svs
+def save_to_file(runs,override_filename=''):
+    """
+    Saves the following parameters to a file
+    g:  graph
+    N:  N x N grid size
+    busemanns: bus1,bus2 just computed
+    wtfun:  The weight function you just used.
+    svs:    The source vertices for the Busemann functions.
+    """
+
+    global bus1,bus2,mywtfun,N,g,mysvs,default_svs,myfilename
 
     import shelve,datetime
     d = datetime.datetime.today().isoformat()
 
-    filename = 'busemanns-runs-' + str(runs) + '-N-' + str(N) \
-            + '-' + mywtfun.__name__ + '-' \
-            + d + '.shelf'
+    # see if global filename set
+    if override_filename == '':
+        filename = 'busemanns-runs-' + str(runs) + '-N-' + str(N) \
+                + '-' + mywtfun.__name__ + '-' \
+                + d + '.shelf'
+    else:
+        filename = override_filename
 
     with shelve.open(filename,'c') as shelf:
         shelf['busemanns'] = (bus1,bus2)
         shelf['N'] = N
         shelf['wtfun'] = mywtfun.__name__
         shelf['g'] = g
-        try:
-            mysvs
-        except:
-            shelf['svs'] = default_svs
-        else:
-            shelf['svs'] = mysvs
-
+        shelf['svs'] = mysvs
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
 
 def plot_busemann_hist(bus1,bins=10,ret=False,bars=False):
     global mywtfun,N
-
 
     h = np.histogram(bus1,bins=bins,density=True)
     # contains the left and right ends of the bins. So h[0] has one less element than h[1]
@@ -357,43 +353,42 @@ def find_corr(bus1,bus2,ret=True):
     print("covariance: ", cov)
     print("correlation coeff: ", cor[0,1])
     if ret:
-        return (cov,cor[0,1]
+        return (cov,cor[0,1])
 
-# following does not work as yet.
-#def ind12(x,y,(bus1,bus2)):
-    #y = [ 1.0 if b1 >= x and b2 >= y else 0.9 for (b1,b2) in zip(bus1,bus2) ]
-    #return sum(y)/len(bus1)
+    # following does not work as yet.
+    #def ind12(x,y,(bus1,bus2)):
+        #y = [ 1.0 if b1 >= x and b2 >= y else 0.9 for (b1,b2) in zip(bus1,bus2) ]
+        #return sum(y)/len(bus1)
 
-# following does not work as yet.
-#def ind(x,bus1):
-    #y = [ 1.0 if b1 >= x for b1 in bus1 ]
-    #return sum(y)/len(bus1)
+    # following does not work as yet.
+    #def ind(x,bus1):
+        #y = [ 1.0 if b1 >= x for b1 in bus1 ]
+        #return sum(y)/len(bus1)
 
-#def plot3d_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
-    #global mywtfun
-    #minr = max(min(bus1),min(bus2)) 
-    #maxr = min(max(bus1),max(bus2))
-    #delta = (maxr-minr)/plotpoints
-    #xax = np.linspace(minr + delta,maxr - delta,plotpoints)
-    #yax = np.linspace(minr + delta,maxr - delta,plotpoints)
-    #x,y = np.meshgrid(xax,yax)
-#
-    ## lambda and vectorize
-    #l12 = lambda x,y : ind12(x,y,(bus1,bus2))
-    #e12 = np.vectorize(ind12)
-#
-    #l1 = lambda x,y : ind(x,bus1) * ind(y,bus2)
-    #e1  = np.vectorize(l1)
-#
-    #z12 = e12(x,y) 
-    #z1 = e12(x,y)
-    #return z12,z1
-
+    #def plot3d_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
+        #global mywtfun
+        #minr = max(min(bus1),min(bus2)) 
+        #maxr = min(max(bus1),max(bus2))
+        #delta = (maxr-minr)/plotpoints
+        #xax = np.linspace(minr + delta,maxr - delta,plotpoints)
+        #yax = np.linspace(minr + delta,maxr - delta,plotpoints)
+        #x,y = np.meshgrid(xax,yax)
+    #
+        ## lambda and vectorize
+        #l12 = lambda x,y : ind12(x,y,(bus1,bus2))
+        #e12 = np.vectorize(ind12)
+    #
+        #l1 = lambda x,y : ind(x,bus1) * ind(y,bus2)
+        #e1  = np.vectorize(l1)
+    #
+        #z12 = e12(x,y) 
+        #z1 = e12(x,y)
+        #return z12,z1
 
 def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
     global mywtfun
-    minr = max(min(bus1),min(bus2)) 
-    maxr = min(max(bus1),max(bus2))
+    minr = min(min(bus1),min(bus2)) 
+    maxr = max(max(bus1),max(bus2))
     delta = (maxr-minr)/plotpoints
     x = np.linspace(minr + delta,maxr - delta,plotpoints)
     y = []

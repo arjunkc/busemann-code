@@ -15,7 +15,9 @@ The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You 
 This will run it 1000 times on a 100 x 100 grid with exponentially distributed passage times. 
 It computes two pairs of functions bus1 and bus2, which corresponds the following differences of passage times:
 
-$$ B_1 = T(0,Ne) - T(e_1,Ne), \quad B_2 = T(e_1,Ne) - T(2e_1,Ne)$$
+$$ 
+    B_1 = T(0,Ne) - T(e_1,Ne), \quad B_2 = T(e_1,Ne) - T(2e_1,Ne)
+$$
 
 where $e_1 = (1,0)$ and $e = e_1 + e_2$. Here, the passage time $T$ is the maximal sum of weights encountered on up-right paths between the two vertices. The two functions $B_1$ and $B_2$ correspond to Busemann functions. The method will also save the busemann data to a file.
 
@@ -36,6 +38,12 @@ Other useful functions include
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
 
 # Notes/Changelog
+
+Feb 24 2018 Could add a global override for the `save_to_file` function. Decided against adding a `set_global_variables` function. There would be a lot of weird hacking for this. I added an argument to `save_to_file` instead. I did some more code cleanup, where I moved global variable setting to the `run_find_busemanns` function.
+
+Feb 24 2018 To do: clean up the precedence of the global variables. It's fine to have N, mysvs, g and mywtfun set as global variables, but if they're passed to the function, one should have the function set these global variables. They should all be handled by `run_find_busemanns` or set global variables for easy debugging. The internally set keyword arguments should have precedence.
+
+Feb 23 2018 mysvs and mywtfun appear to be ugly global variable hacks, but it really helps the shelve function. I don't have to pass all these variables to it. 
 
 Feb 15 2018 Working on plot 3d correlations. The functions ind12 and ind1 do not work, and have been commented out. I'm simply going to test the busemann correlation hypothesis. The busemanns appear to be negatively correlated as far as I can tell.
 
