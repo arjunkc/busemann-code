@@ -3,6 +3,12 @@
 
 import igraph as ig
 import numpy as np
+from itertools import chain
+import time
+import shelve,datetime
+import scipy.optimize as opt
+from scipy.stats import gamma
+import matplotlib.pyplot as plt
 
 #import pdb; pdb.set_trace()
 
@@ -24,12 +30,15 @@ def strtuple(s):
 
 def tuplestr(*x):
     # flatten allows you to call tuplestr((1,2)) and tuple(1,2)
+    # flatten doesn't always work in all versions of python. so switched to chain.from_iterable
     global dbg
-    x1 = list(flatten(x))
+    # chain.from_iterable, unlike flatten, does not like (1,2). instead it prefers ((1,), (2,))
+    # so my list comprehension converts that.
+    x1 = list(chain.from_iterable( (i if isinstance(i,tuple) else (i,) for i in x)))
     # turn integers into strings
     x1 = [ str(a) for a in x1 ]
     if dbg >= 3:
-        print(x1)
+        print(x1,','.join(x1))
     return ','.join(x1)
 
 def try_addvertex(g,name):
@@ -70,6 +79,8 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     """
 
     if asgenerator:
+        if dbg >= 3:
+            print('running graphgen as generator')
         verts = vertgen(N)
         edges = edgegen(N)
     else:
@@ -89,9 +100,14 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
                 edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
                         (tuplestr(i,j),tuplestr(i,j+1))]
     if not noigraph_gen:
-        g = ig.Graph(directed=directed)
-        g.add_vertices(verts)
-        g.add_edges(edges)
+        if dbg >= 3:
+            print('generating new graph')
+        try:
+            g = ig.Graph(directed=directed)
+            g.add_vertices(verts)
+            g.add_edges(edges)
+        except:
+            print('Error in generating igraph')
         # ig.Graph.Lattice doesn't do directed graphs.
         # return ig.Graph.Lattice([N,N],circular=False)
         return g
@@ -168,7 +184,6 @@ def find_busemanns(g,N,wtfun,svs):
     times = g.shortest_paths_dijkstra(source=[ tuplestr(x) for x in svs],target=tuplestr(N-1,N-1),weights=edgewts)
 
     # flatten times list using chain
-    from itertools import chain
     times = list(chain.from_iterable(times))
     if dbg >= 2:
         print("times:", times)
@@ -189,7 +204,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
     Then it saves to a shelf if save=True
     """
     # set global variables first
-    global bus1,bus2,N,dbg,filename,mywtfun,mysvs
+    global bus1,bus2,N,dbg,filename,mywtfun,mysvs,g
 
     # vertices
     N = number_of_vertices
@@ -206,13 +221,11 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         g
         # if g exists, check that it came from our lattice generated algorithm with the correct N. The number of edges should be 2N^2 since there are N^2 vertices
         if not 2 * (N ** 2) == g.ecount():
-            import time
             print("Started regenerating graph")
             stime = time.time()
             g = graphgen(N)
             print("Ended regenerating graph.",time.time() - stime)
     except:
-        import time
         print("Started generating graph.")
         stime = time.time()
         g = graphgen(N)
@@ -223,7 +236,6 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
     # begin running find_busemanns
     bus1 = []
     bus2 = []
-    import time
     stime = time.time()
     for x in range(0,runs):
         if dbg >= 3 and x % 2 == 0:
@@ -231,6 +243,8 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         elif dbg >= 2 and x % 10 == 0:
             print("run: ",x)
         elif dbg >= 1 and x % 50 == 0:
+            print("run: ",x)
+        elif dbg >= 0 and x % 1000 == 0:
             print("run: ",x)
 
         p,q = find_busemanns(g,N,wtfun,svs) 
@@ -263,7 +277,6 @@ def save_to_file(runs,override_filename=''):
 
     global bus1,bus2,mywtfun,N,g,mysvs,default_svs,myfilename
 
-    import shelve,datetime
     d = datetime.datetime.today().isoformat()
 
     # see if global filename set
@@ -278,7 +291,10 @@ def save_to_file(runs,override_filename=''):
         shelf['busemanns'] = (bus1,bus2)
         shelf['N'] = N
         shelf['wtfun'] = mywtfun.__name__
-        shelf['g'] = g
+        try:
+            shelf['g'] = g
+        except:
+            print('Error saving graph. Not saving graph to file.')
         shelf['svs'] = mysvs
 
 # busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
@@ -314,8 +330,6 @@ def gammapdf(x,shape,scale):
             return gamma.pdf(x,shape,scale=scale)
 
 def gamma_fit(x,y):
-    import scipy.optimize as opt
-    from scipy.stats import gamma
     popt,pcov = opt.curve_fit(gammapdf,x,y,p0=(1,1))
     return popt
 
@@ -335,7 +349,10 @@ def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False, printout=True):
     cov = p12  -  p1 * p2
     # i guess variance of indicators is p1 * (1 - p1)
     if 0 < p1 < 1 and 0 < p1 < 1:
-        corr = cov / np.sqrt(p1 * (1-p1) * p2 * (1-p2))
+        try:
+            corr = cov / np.sqrt(p1 * (1-p1) * p2 * (1-p2))
+        except:
+            print("nan occurred in test_indep with params: ",ind_params)
     else:
         corr = nan
 
@@ -385,7 +402,7 @@ def find_corr(bus1,bus2,ret=True):
         #z1 = e12(x,y)
         #return z12,z1
 
-def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,printout=False,**kwargs):
+def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False,ret=False,printout=False,**kwargs):
     global mywtfun
     minr = min(min(bus1),min(bus2)) 
     maxr = max(max(bus1),max(bus2))
@@ -413,9 +430,12 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',ret=False,pri
                 y.append(corr)
 
     l1, = plt.plot(x1,y,**kwargs)
-    plt.title(mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples))
+    figtitle = 'busemann ' + plottype + ', ' + mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples) + ', svs=' + str(mysvs)
+    plt.title(figtitle)
     #plt.legend([ l1 ],[ plottype ])
     plt.legend() # legend controlled by plt.legend() keyword
+    if savefig:
+        plt.savefig(figtitle + '.png')
 
     if ret:
         return x1,y
@@ -472,8 +492,11 @@ def import_from_file(filename):
             print('No graph saved to file')
         else:
             # this is a little slow
-            g = shelf['g']
-            print('Found graph corresponding to N = ', np.sqrt(g.ecount()/2) )
+            try:
+                g = shelf['g']
+                print('Found graph corresponding to N = ', np.sqrt(g.ecount()/2) )
+            except:
+                print('error getting graph edge count')
 
 def absnormal(*args,**kargs):
     return abs(np.random.normal(*args,**kargs))    

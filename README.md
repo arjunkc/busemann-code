@@ -33,11 +33,17 @@ You can test the correlations of the two Busemanns using
 
 Other useful functions include
 
-1.  graphgen
+1.  graphgen. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
 1.  `vertex_weights`
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
 
 # Notes/Changelog
+
+Apr 20 2018 Now `save_to_file` saves files with a .db extension, and when importing, *you have to be careful to drop the extension*. That is, *do not* use filename.shelf.db, and use filename.shelf. There was also a problem of the graph not getting exported since it wasn't declared as a local variable in `run_find_busemanns`.
+
+Apr 20 2018 There was some trouble in the tuplestr function with flatten and `chain.from_iterable`. I had to write code that distinguished between 1,2 as separate arguments and (1,2).
+
+Apr 19 2018 I did some more simulations after talking to Pete, and it seems like negative association only seems to be true for uniform and the source vertices are arranged in a down-right fashion. I saved some image files for the absnormal, and there is a region where its not so clear if things are infact negatively associated.
 
 Feb 24 2018 Could add a global override for the `save_to_file` function. Decided against adding a `set_global_variables` function. There would be a lot of weird hacking for this. I added an argument to `save_to_file` instead. I did some more code cleanup, where I moved global variable setting to the `run_find_busemanns` function.
 
