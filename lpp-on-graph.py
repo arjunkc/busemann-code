@@ -1,13 +1,21 @@
 # Oct 15 2017 Does last passage percolation on lattice.
 # Want to compute correlations of busemann functions
 
-import igraph as ig
-import numpy as np
-from itertools import chain
+import sys,math,readline
+
 import time
 import shelve,datetime
+
+import numpy as np
+
+import igraph as ig
+
+from itertools import chain
+
+import scipy 
 import scipy.optimize as opt
 from scipy.stats import gamma
+
 import matplotlib.pyplot as plt
 
 #import pdb; pdb.set_trace()
@@ -139,10 +147,10 @@ def graphgen2(N,directed=True):
     #return ig.Graph.Lattice([N,N],circular=False)
     return g
 
-def plot_graph(g):
+def plot_graph(g,**kwargs):
     # testing function that allows you to plot the directed graph
     layout = g.layout_fruchterman_reingold()
-    ig.plot(g,layout = layout).show()
+    ig.plot(g,layout = layout,**kwargs).show()
 
 def vertex_weights(wtfun,lpp=True):
     # iterate over vertices, select successor edges for each vertex, and assign edge weight
@@ -231,7 +239,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         g = graphgen(N)
         print("Ended generating graph.",time.time() - stime)
     else:
-        print("Graph found, (hopefully) roughly corresponds to N x N grid with N =  ", int(np.sqrt(g.vcount())-1))
+        print("Graph found, (hopefully) roughly corresponds to N x N grid with N =  ", int(np.sqrt(g.vcount())))
 
     # begin running find_busemanns
     bus1 = []
@@ -403,6 +411,9 @@ def find_corr(bus1,bus2,ret=True):
         #return z12,z1
 
 def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False,ret=False,printout=False,**kwargs):
+    """
+    plots correlation for two busemann functions. It plots it for indicators 1{X \leq a} 1{ Y \leq a} and so it only plots something reasonable when X and Y have the same signs for the most part. If X > 0 and Y < 0 this wouldn't work.
+    """
     global mywtfun
     minr = min(min(bus1),min(bus2)) 
     maxr = max(max(bus1),max(bus2))

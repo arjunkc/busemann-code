@@ -39,6 +39,8 @@ Other useful functions include
 
 # Notes/Changelog
 
+May 08 2018 Have to implement `mark_groups` to plot shortest paths. I should save a shortest path instance at some point. Or I should write a function called `plot_shortest_path` that takes in a graph, and plots all three shortest paths.
+
 Apr 20 2018 Now `save_to_file` saves files with a .db extension, and when importing, *you have to be careful to drop the extension*. That is, *do not* use filename.shelf.db, and use filename.shelf. There was also a problem of the graph not getting exported since it wasn't declared as a local variable in `run_find_busemanns`.
 
 Apr 20 2018 There was some trouble in the tuplestr function with flatten and `chain.from_iterable`. I had to write code that distinguished between 1,2 as separate arguments and (1,2).
