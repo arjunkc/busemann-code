@@ -79,11 +79,14 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     This function creates a directed lattice in d=2 where edges go up or right.
     The ig.Graph.Lattice function does not appear to create directed graphs well.
     Use plot_graph to test with a small N.
+
     igraph does not check for uniqueness when adding vertices by name.
-    Oct 25 2017 The for loop in this function is very slow. An iterator that yields is definitely better
-    since the for loop is run by the igraph creation routine.
-    Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first.
-    noigraph_gen simply retuns edges and vertices
+
+    asgenerator=True means verts python generators that "yield" vertices each time it is called. It seemed to me that it might be marginally faster if you passed generators to the igraph.add_vertices(generator) versus igraph.add_vertices( [list of vertices ] ). I haven't really tested this.
+
+    Oct 25 2017 The for loop in this function is very slow. An iterator that yields is definitely better since the for loop is run by the igraph creation routine.
+
+    Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first. noigraph_gen simply retuns edges and vertices
     """
 
     if asgenerator:
@@ -107,6 +110,8 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
                     verts.append(tuplestr(i,j+1))
                 edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
                         (tuplestr(i,j),tuplestr(i,j+1))]
+
+    # make a graph layout for plotting
     if not noigraph_gen:
         if dbg >= 3:
             print('generating new graph')
@@ -116,14 +121,21 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
             g.add_edges(edges)
         except:
             print('Error in generating igraph')
-        # ig.Graph.Lattice doesn't do directed graphs.
-        # return ig.Graph.Lattice([N,N],circular=False)
-        return g
+
+        # make layout for plotting
+        layoutlist = [ (x,y) for x in range(5) for y in range(5) ] + [ (x,5) for x in range(5) ] + [ (5,y) for y in range(5) ]
+        # since the computers have the y axis going downwards while plotting, lets invert the layout
+        layoutlist = [ (x,5-y) for (x,y) in layoutlist ] 
+
+        return g,ig.Layout(layoutlist)
     else:
         return verts,edges
 
 def graphgen2(N,directed=True):
-    # this is a graph gen version that uses g.add_vertex instead of g.add_vertices.
+    """
+    this is a graph gen version that uses g.add_vertex instead of g.add_vertices.
+    I think I wrote it simply to see what would generate the graph faster
+    """
     g = ig.Graph(directed=directed)
     g.add_vertex(name=tuplestr(0,0))
     for i in range(0,N):
@@ -147,10 +159,14 @@ def graphgen2(N,directed=True):
     #return ig.Graph.Lattice([N,N],circular=False)
     return g
 
-def plot_graph(g,**kwargs):
+def plot_graph(g,graphlayout=None,**kwargs):
     # testing function that allows you to plot the directed graph
-    layout = g.layout_fruchterman_reingold()
-    ig.plot(g,layout = layout,**kwargs).show()
+    # you can pass it your custom layout
+    if graphlayout == None:
+        # default layout is a grid.
+        graphlayout = g.layout_fruchterman_reingold()
+        
+    ig.plot(g,layout = graphlayout,**kwargs).show()
 
 def vertex_weights(wtfun,lpp=True):
     # iterate over vertices, select successor edges for each vertex, and assign edge weight
@@ -175,9 +191,14 @@ def vertex_weights(wtfun,lpp=True):
 
     return wt
 
-def find_busemanns(g,N,wtfun,svs):
-    # takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give it a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
-    # the extra minus sign is taken into account in the return statement.
+def find_busemanns(g,N,wtfun,svs,geodesics=False):
+    """
+    takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give it a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
+
+    the extra minus sign is taken into account in the return statement.
+
+    geodesics = True does not work at the moment since get_all_shortest paths does not take negative weights. We're looking for longest paths here.
+    """
 
     # generate random weights using wtfun
     edgewts = vertex_weights(wtfun=wtfun)
@@ -190,6 +211,9 @@ def find_busemanns(g,N,wtfun,svs):
     # since we're finding last passage times you need to add an extra minus sign in the shortest path.
 
     times = g.shortest_paths_dijkstra(source=[ tuplestr(x) for x in svs],target=tuplestr(N-1,N-1),weights=edgewts)
+    if geodesics == True:
+        # this has a slightly different syntax from shortest_paths_dijkstra
+        paths = g.get_all_shortest_paths(tuplestr(N-1,N-1),to=[ tuplestr(x) for x in svs],weights=edgewts)
 
     # flatten times list using chain
     times = list(chain.from_iterable(times))
@@ -199,9 +223,12 @@ def find_busemanns(g,N,wtfun,svs):
     #b2 = g.shortest_paths_dijkstra(tuplestr(2,0),target=tuplestr(N-1,N-1),weights='weight')[0][0] - \
             #g.shortest_paths_dijkstra(tuplestr(1,0),target=tuplestr(N-1,N-1),weights='weight')[0][0]
     # the subtraction takes into account that i've multiplied the weights by -1
-    return  times[1] - times[0], times[3] - times[2],
+    if geodesics == True:
+        return  times[1] - times[0], times[3] - times[2], paths
+    else: 
+        return  times[1] - times[0], times[3] - times[2]
 
-def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,svs=default_svs):
+def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,svs=default_svs,geodesics=False):
     """
     Sets the following global variables/parameters for the computation.
     N:  This sets the size of the N by N grid. Can be set using number_of_vertices in run_find_busemanns.
@@ -212,7 +239,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
     Then it saves to a shelf if save=True
     """
     # set global variables first
-    global bus1,bus2,N,dbg,filename,mywtfun,mysvs,g
+    global bus1,bus2,paths,N,dbg,filename,mywtfun,mysvs,g,graphlayout
 
     # vertices
     N = number_of_vertices
@@ -231,12 +258,12 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         if not 2 * (N ** 2) == g.ecount():
             print("Started regenerating graph")
             stime = time.time()
-            g = graphgen(N)
+            g,graphlayout = graphgen(N)
             print("Ended regenerating graph.",time.time() - stime)
     except:
         print("Started generating graph.")
         stime = time.time()
-        g = graphgen(N)
+        g,graphlayout = graphgen(N)
         print("Ended generating graph.",time.time() - stime)
     else:
         print("Graph found, (hopefully) roughly corresponds to N x N grid with N =  ", int(np.sqrt(g.vcount())))
@@ -244,6 +271,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
     # begin running find_busemanns
     bus1 = []
     bus2 = []
+    paths = []
     stime = time.time()
     for x in range(0,runs):
         if dbg >= 3 and x % 2 == 0:
@@ -255,7 +283,11 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         elif dbg >= 0 and x % 1000 == 0:
             print("run: ",x)
 
-        p,q = find_busemanns(g,N,wtfun,svs) 
+        if geodesics == True:
+            p,q,r = find_busemanns(g,N,wtfun,svs,geodesics=True) 
+            paths.append(r)
+        else:
+            p,q = find_busemanns(g,N,wtfun,svs,geodesics=False) 
         bus1.append(p)
         bus2.append(q)
 

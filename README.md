@@ -39,6 +39,8 @@ Other useful functions include
 
 # Notes/Changelog
 
+Jun 21 2019 The problem with `get_all_shortest_paths` is that it requires wtfun to be positive! We have negative weight function since we want to find the LONGEST path. So we're a bit doomed here. So I will have to find the shortest path using the usual backward iteration. If geodesics == True, return all passage times for each of the source vertices. Then move backwards to get the shortest paths.
+
 May 08 2018 Have to implement `mark_groups` to plot shortest paths. I should save a shortest path instance at some point. Or I should write a function called `plot_shortest_path` that takes in a graph, and plots all three shortest paths. You will need to find indices using
 
     g.vs.find(name=tuplestr)
@@ -61,7 +63,7 @@ Feb 15 2018 Working on plot 3d correlations. The functions ind12 and ind1 do not
 
 Nov 01 2017 Plot 3d correlations or contour plot. return to `plot3d_correlations`.
 
-Oct 31 2017 Somehow it's not coming up as positively associated in the simulations. There is a telling correlation coefficient image that indicates that the exponential is independent, more or less. The absnormal and uniform are of course fairly strongly correlated. But at some critical point, the correlation coefficient suddently turns negative.
+Oct 31 2017 Somehow it's not coming up as positively associated in the simulations. There is a telling correlation coefficient image that indicates that the exponential is independent, more or less. The absnormal and uniform are of course fairly strongly correlated. But at some critical point, the correlation coefficient suddently turns negative. May 09 2018 UPDATE: I dont expect $B(0,e_1)$ and $B(0,e_2)$ to be positively or negatively correlated. Since the arrow at $0$ can "switch", I expect the correlation to be distribution dependent.
 
 Oct 27 2017 Added a bunch of other functions.
 
