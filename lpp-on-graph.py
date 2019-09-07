@@ -92,7 +92,7 @@ def edgegen(N):
                 yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
 
 
-def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
+def graphgen(N,directed=True,noigraph_gen=False):
     """
     This function creates a directed lattice in d=2 where edges go up or right.
     The ig.Graph.Lattice function does not appear to create directed graphs well.
@@ -109,26 +109,10 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first. noigraph_gen simply retuns edges and vertices
     """
 
-    if asgenerator:
-        if dbg >= 3:
-            print('running graphgen as generator')
-        verts = vertgen(N)
-        edges = edgegen(N)
-    else:
-        verts = []
-        edges = []
-        for i in range(0,N):
-            for j in range(0,N):
-                # i tried to store vertex names as tuples, but it confuses it
-                #if dbg >= 3 and ((i*j + 1) % 100 == 0):
-                if dbg >= 3:
-                    print(i,j)
-                verts.append(tuple_to_str(i,j))
-                # conditional addition of edges above i,j
-                if i != N-1:
-                    edges = edges + [(tuple_to_str(i,j),tuple_to_str(i+1,j))]
-                if j != N-1:
-                    edges = edges + [(tuple_to_str(i,j),tuple_to_str(i,j+1))]
+    if dbg >= 3:
+        print('running graphgen as generator')
+    verts = vertgen(N)
+    edges = edgegen(N)
 
     # make a graph layout for plotting
     if not noigraph_gen:
@@ -143,15 +127,11 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
 
         # make layout for plotting
         layoutlist = [ (x,y) for x in range(N) for y in range(N) ] 
-        # the following older stuff may be deleted
-        # + [ (x,N) for x in range(N) ] + [ (N,y) for y in range(N) ]
-        # since the computers have the y axis going downwards while plotting, lets invert the layout
-        #layoutlist = [ (x,N-y) for (x,y) in layoutlist ] 
 
         return g,ig.Layout(layoutlist)
         #return g,ig.Layout(layoutlist)
     else:
-        return verts,edges
+        return ([x for x in verts],[ x for x in edges ])
 
 def plot_graph(g,graphlayout=None,**kwargs):
     """
