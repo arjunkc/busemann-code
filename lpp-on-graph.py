@@ -18,6 +18,9 @@ from scipy.stats import gamma
 
 import matplotlib.pyplot as plt
 
+# traceback
+import traceback
+
 #import pdb; pdb.set_trace()
 
 # global variables
@@ -32,12 +35,16 @@ except:
 
 default_svs = [(0,0),(1,0),(1,0),(2,0)]
 
-def strtuple(s):
-    # convert into a tuple
+def str_to_tuple(s):
+    # convert a string like '0,0' into a tuple (0,0)
     return tuple( [ int(x) for x in s.split(",") ] )
 
-def tuplestr(*x):
-    # flatten allows you to call tuplestr((1,2)) and tuple(1,2)
+def tuple_to_str(*x):
+    """
+    converts a tuple into a string
+    I want it to work for both (0,0) and '0,0' so that its convenient for me
+    """
+    # flatten allows you to call tuple_to_str((1,2)) and tuple(1,2)
     # flatten doesn't always work in all versions of python. so switched to chain.from_iterable
     global dbg
     # chain.from_iterable, unlike flatten, does not like (1,2). instead it prefers ((1,), (2,))
@@ -58,21 +65,32 @@ def try_addvertex(g,name):
     return g
 
 def vertgen(N):
+    """
+    generator for graphgen. 
+    N = size of N x N 2d square lattice
+    will generate vertices from (0,0) to (N-1,N-1)
+    """
     i,j = 0,0
     for i in range(0,N):
         for j in range(0,N):
-            yield tuplestr(i,j)
-    for k in range(0,N):
-        yield tuplestr(k,N)
-    for k in range(0,N):
-        yield tuplestr(N,k)
+            yield tuple_to_str(i,j)
 
 def edgegen(N):
+    """
+    generator for graphgen. 
+    N = size of N x N 2d square lattice
+    will generate 2*(N-1)*N edges  = 
+    2 for each vertex (i,j) such that 0<= i < N-1 and 0 <= j < N-1 
+    and then 2(N-1) more edges for the two boundary = 2 (N-1)^2 + 2(N-1)
+    """
     i,j = 0,0
     for i in range(0,N):
         for j in range(0,N):
-            for k in [(i+1,j),(i,j+1)]:
-                yield (tuplestr(i,j),tuplestr(k))
+            if i != N-1:
+                yield (tuple_to_str(i,j),tuple_to_str(i+1,j))
+            if j != N-1:
+                yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
+
 
 def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     """
@@ -81,6 +99,8 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
     Use plot_graph to test with a small N.
 
     igraph does not check for uniqueness when adding vertices by name.
+
+    noigraph_gen does not generate the graph. It works best if asgenerator is set to false so that you get a list of vertices and edges.
 
     asgenerator=True means verts python generators that "yield" vertices each time it is called. It seemed to me that it might be marginally faster if you passed generators to the igraph.add_vertices(generator) versus igraph.add_vertices( [list of vertices ] ). I haven't really tested this.
 
@@ -100,16 +120,15 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
         for i in range(0,N):
             for j in range(0,N):
                 # i tried to store vertex names as tuples, but it confuses it
-                if dbg >= 3 and ((i*j + 1) % 100 == 0):
+                #if dbg >= 3 and ((i*j + 1) % 100 == 0):
+                if dbg >= 3:
                     print(i,j)
-                verts.append(tuplestr(i,j))
-                # conditional addition of vertex above i,j
-                if i == N-1:
-                    verts.append(tuplestr(i+1,j))
-                if j == N-1:
-                    verts.append(tuplestr(i,j+1))
-                edges = edges + [(tuplestr(i,j),tuplestr(i+1,j)),\
-                        (tuplestr(i,j),tuplestr(i,j+1))]
+                verts.append(tuple_to_str(i,j))
+                # conditional addition of edges above i,j
+                if i != N-1:
+                    edges = edges + [(tuple_to_str(i,j),tuple_to_str(i+1,j))]
+                if j != N-1:
+                    edges = edges + [(tuple_to_str(i,j),tuple_to_str(i,j+1))]
 
     # make a graph layout for plotting
     if not noigraph_gen:
@@ -123,67 +142,44 @@ def graphgen(N,directed=True,noigraph_gen=False,asgenerator=True):
             print('Error in generating igraph')
 
         # make layout for plotting
-        layoutlist = [ (x,y) for x in range(5) for y in range(5) ] + [ (x,5) for x in range(5) ] + [ (5,y) for y in range(5) ]
+        layoutlist = [ (x,y) for x in range(N) for y in range(N) ] 
+        # the following older stuff may be deleted
+        # + [ (x,N) for x in range(N) ] + [ (N,y) for y in range(N) ]
         # since the computers have the y axis going downwards while plotting, lets invert the layout
-        layoutlist = [ (x,5-y) for (x,y) in layoutlist ] 
+        #layoutlist = [ (x,N-y) for (x,y) in layoutlist ] 
 
         return g,ig.Layout(layoutlist)
+        #return g,ig.Layout(layoutlist)
     else:
         return verts,edges
 
-def graphgen2(N,directed=True):
-    """
-    this is a graph gen version that uses g.add_vertex instead of g.add_vertices.
-    I think I wrote it simply to see what would generate the graph faster
-    """
-    g = ig.Graph(directed=directed)
-    g.add_vertex(name=tuplestr(0,0))
-    for i in range(0,N):
-        for j in range(0,N):
-            # i tried to store vertex names as tuples, but it confuses it
-            if dbg >= 3 and ((i*j + 1) % 100 == 0):
-                print(i,j)
-
-            # add vertex to the right of current
-            g.add_vertex(tuplestr(i+1,j))
-            # since iterating over columns first, do casework to add vertex above it.
-            if i == 0:
-                g.add_vertex(tuplestr(i,j+1))
-            elif j == N-1:
-                g.add_vertex(tuplestr(i,j+1))
-
-            # once vertices are added if necessary
-            g.add_edges([(tuplestr(i,j),tuplestr(i+1,j)),\
-                    (tuplestr(i,j),tuplestr(i,j+1))])
-
-    #return ig.Graph.Lattice([N,N],circular=False)
-    return g
-
 def plot_graph(g,graphlayout=None,**kwargs):
-    # testing function that allows you to plot the directed graph
-    # you can pass it your custom layout
+    """
+    testing function that allows you to plot the directed graph
+    you can pass it your custom layout. custom layouts can be generated using graphgen
+    """
     if graphlayout == None:
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
         
-    ig.plot(g,layout = graphlayout,**kwargs).show()
+    return ig.plot(g,layout = graphlayout,**kwargs)
 
-def vertex_weights(wtfun,lpp=True):
-    # iterate over vertices, select successor edges for each vertex, and assign edge weight
-    # could implement this as a generator
-    # it's a little inefficient
-    # must pass a graph and a weight function like np.random.exponential.
-    # wtfun must take an optional size argument.
-    #Oct 23 2017 Just double the edge weights now, and the sampling algorithm will be 
-    # very fast.
+def vertex_weights(wtfun,N,lpp=True):
+    """
+    generates vertex weights by making the outgoing edges from each vertex have the same weight
+    there are N**2 vertices, and each has two outgoing edges, except for either i=N-1 or j=N-1, in which case we will have only one outgoing edge.
+    """
+    wt = []
+    for i in range(N-1):
+        gen = list(-wtfun(size=N-1))
+        wt = wt + [ val for pair in zip(gen,gen) for val in pair ]
+        # one for the last edge 
+        wt = wt + list(-wtfun(size=1))
+    # one for the last row of weights
+    wt = wt + list(-wtfun(size=N-1))
 
-    global N
-    # very specific to this graph and the lattice. Can easily be generalized. This particular graph will always have an integer number of vertices.
-    # there are N**2 vertices, and each has two outgoing edges.
-    wt = list(-wtfun(size=N**2))
-
-    # interleave the two lists to make adjacent edges have equal weights
-    wt = [ val for pair in zip(wt,wt) for val in pair ]
+    if dbg>=3:
+        print(len(wt))
 
     if not lpp:
         # then its fpp; make the weights positive. 
@@ -201,7 +197,9 @@ def find_busemanns(g,N,wtfun,svs,geodesics=False):
     """
 
     # generate random weights using wtfun
-    edgewts = vertex_weights(wtfun=wtfun)
+    # returns edge weights made so that all weights incident to an edge are equal
+    edgewts = vertex_weights(wtfun,N)
+
     if dbg >= 2:
         print("Done Generating weights")
         print("Generated " + str(len(edgewts)) + " weights")
@@ -210,18 +208,22 @@ def find_busemanns(g,N,wtfun,svs,geodesics=False):
 
     # since we're finding last passage times you need to add an extra minus sign in the shortest path.
 
-    times = g.shortest_paths_dijkstra(source=[ tuplestr(x) for x in svs],target=tuplestr(N-1,N-1),weights=edgewts)
     if geodesics == True:
         # this has a slightly different syntax from shortest_paths_dijkstra
-        paths = g.get_all_shortest_paths(tuplestr(N-1,N-1),to=[ tuplestr(x) for x in svs],weights=edgewts)
+        #paths = g.get_shortest_paths(tuple_to_str(N-1,N-1),to=[ tuple_to_str(x) for x in svs],weights=edgewts)
+        # get times to all vertices on the lattice
+        #targets=g.vs[
+        times = g.shortest_paths_dijkstra(source=[ tuple_to_str(x) for x in svs],target=g.vs['name'],weights=edgewts)
+    else:
+        times = g.shortest_paths_dijkstra(source=[ tuple_to_str(x) for x in svs],target=tuple_to_str(N-1,N-1),weights=edgewts)
 
     # flatten times list using chain
     times = list(chain.from_iterable(times))
     if dbg >= 2:
         print("times:", times)
 
-    #b2 = g.shortest_paths_dijkstra(tuplestr(2,0),target=tuplestr(N-1,N-1),weights='weight')[0][0] - \
-            #g.shortest_paths_dijkstra(tuplestr(1,0),target=tuplestr(N-1,N-1),weights='weight')[0][0]
+    #b2 = g.shortest_paths_dijkstra(tuple_to_str(2,0),target=tuple_to_str(N-1,N-1),weights='weight')[0][0] - \
+            #g.shortest_paths_dijkstra(tuple_to_str(1,0),target=tuple_to_str(N-1,N-1),weights='weight')[0][0]
     # the subtraction takes into account that i've multiplied the weights by -1
     if geodesics == True:
         return  times[1] - times[0], times[3] - times[2], paths
@@ -295,7 +297,161 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
         save_to_file(runs)
 
     print("Runtime in seconds: ", time.time() - stime)
-    
+
+def return_times(g,N,wtfun,scaled=False):
+    """
+    g: graph
+    N: size of grid
+    returns occupied vertex indices
+    """
+    edgewts = vertex_weights(wtfun,N)
+
+    times = g.shortest_paths_dijkstra(source=tuple_to_str(0,0),target=g.vs['name'],weights=edgewts)
+    # flatten times list using chain so that it is a single list
+    times = list(chain.from_iterable(times))
+    # convert to a list of positive times
+    times = [ -1 * x for x in times ]
+
+    return times
+
+def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=True,interface=False):
+    """
+    this is a helper function. returns (scaled) coordinates so it can be plotted easily.
+    pass times calculated by return times function
+    a lot of the inefficiency could be avoided if graph has vertices ordered by x coordinate. fix graphgen. 
+    vertex_list : obtained from g.vs['name']
+    times : times for occupying each vertex in vertex list
+    time_threshold: a number like 3. returns vertex sites that are smaller than 3.
+    interface: returns only the interface between the "wet region" and "dry region"
+    """
+    #import pdb; pdb.set_trace()
+
+    N = int(np.sqrt(len(vertex_list))) # assuming only N**2 vertices are obtained.
+    occupied_vertices = []
+    j =  0
+    for i in range(N):
+        j = 0
+        try:
+            while j < N and times[i*N + j] <= time_threshold:
+                if not interface:
+                    z = str_to_tuple(vertex_list[i*N+j])
+                    occupied_vertices.append(z)
+                j = j + 1
+        except:
+            print(i,j)
+            traceback.print_exc(file=sys.stdout)  
+
+        # append only the last one before j jumped
+        if interface and j > 0:
+                z = str_to_tuple(vertex_list[i*N+j-1])
+                occupied_vertices.append(z)
+    # if scaled is true, scale all the vertices
+    if scaled:
+        occupied_vertices = [(x/time_threshold,y/time_threshold) for x,y in occupied_vertices]
+
+    # if interface=True, occupied vertices will have the interface
+    return occupied_vertices
+
+def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000):
+    """
+    This plots the limit shape 
+    times contains first or last passage times to vertices
+    colors contains the occupied and unoccupied vertex colors
+    returns plots using the igraph library to plot graphs.
+    """
+
+    global dbg
+
+    try:
+        samples = wtfun(size=meansamples)
+        mean = np.mean(samples)
+        std = np.std(samples)
+        if dbg>=1:
+            print('mean = ',mean)
+            print('std = ',std)
+        # if no threshold is given, then 
+        if thresholds==None:
+            # the default threshold works well with scaled since it returns the "limit shape T[nx]
+            thresholds = [N * mean/2]
+
+        if dbg>=2:
+            print('time threshold:',thresholds)
+
+        vertices = g.vs['name']
+        if dbg>=2:
+            print('len of vertices',len(vertices))
+
+        plots = []
+        for x in thresholds:
+            occupied_vertices = return_occupied_vertex_coordinates(vertices,times,x,scaled=True,interface=interface)
+            occupied_vertices = np.array(occupied_vertices)
+            # color[0] if occupied, color[1] if not
+            if interface:
+                # if just the interface, might as well use plt.plot
+                plots.append(plt.plot(occupied_vertices[:,0],occupied_vertices[:,1],'r-'))
+            else:
+                plots.append(plt.scatter(occupied_vertices[:,0],occupied_vertices[:,1],c=colors[0],s=0.5,edgecolors=None))
+    except:
+        traceback.print_exc(file=sys.stdout)  
+
+    if compare_with_exponential:
+        gridsize = 100
+        xaxis = np.linspace(0,1/mean,gridsize)
+        yaxis = np.linspace(0,1/mean,gridsize)
+        x,y = np.meshgrid(xaxis,yaxis)
+        #
+        e = np.vectorize(exponential_limit_curve)
+        z = e(x,y,mean=mean,std=std)
+        plots.append(plt.contour(x,y,z,[1]))
+
+    return plots
+    #return times,occulib(g,wtfun):
+
+def exponential_limit_curve(x,y,mean=1,std=1):
+    """
+    pass x and y to it and it returns the universal exponential curve
+    see J. Martin 2004 limiting shape for directed percolation models annals of probability.
+    see also Martins survey 2005 equation theorem 6.1
+    """
+    return  mean*(x + y) + 2*std*np.sqrt(x * y)
+
+def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','white'],meansamples=10000):
+    """
+    times contains first or last passage times to vertices
+    colors contains the occupied and unoccupied vertex colors
+    returns plots using the igraph library to plot graphs.
+    looks a little ugly since we do not have as much control as we do in matplotlib.pyplot
+    """
+
+    global dbg
+
+    try:
+        mean = np.mean(wtfun(size=meansamples))
+        # if no threshold is given, then 
+        if thresholds==None:
+            thresholds = [N/(mean)]
+
+        plots = []
+        for x in thresholds:
+
+            if dbg==2:
+                print('time threshold:',thresholds)
+
+            vertices = g.vs['name']
+            if dbg==2:
+                print('len of vertices',len(vertices))
+
+            occupied_vertices_indices = [ i for i in range(len(vertices)) if times[i] <= x ]
+            # color[0] if occupied, color[1] if not
+            vcolors= [ colors[0]  if i in occupied_vertices_indices else colors[1] for i in range(len(vertices)) ]
+            plots.append(plot_graph(g,layout,vertex_color=vcolors))
+    except:
+        import traceback
+        traceback.print_exc(file=sys.stdout)  
+
+    return plots
+    #return times,occupied_vertices
+
 def print_keys_in_file(f):
     """
     Simple function that prints keys inside a shelf
@@ -337,9 +493,12 @@ def save_to_file(runs,override_filename=''):
             print('Error saving graph. Not saving graph to file.')
         shelf['svs'] = mysvs
 
-# busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
-
 def plot_busemann_hist(bus1,bins=10,ret=False,bars=False):
+    """
+    returns histogram of Busemann function (probability distribution function)
+    simply pass a values list to the function and it will plot the pdf using pyplot.hist function
+    For exponential vertex weights, busemann functions should have exp(alpha) for horizontal. See romik's lisbook. Recall duality to understand the parameter of the busemann function. E[B] = (\alpha, 1 - \alpha) for \alpha in (0,1). This gives the busemann function with gradient corresponding to -\E[B]. So in the (1,1) direction, one should get the exponential function with parameter 1/2.
+    """
     global mywtfun,N
 
     h = np.histogram(bus1,bins=bins,density=True)
@@ -367,14 +526,22 @@ def plot_busemann_hist(bus1,bins=10,ret=False,bars=False):
         plt.legend([l2],['exp(1/2)'])
 
 def gammapdf(x,shape,scale):
-            return gamma.pdf(x,shape,scale=scale)
+    """
+    These functions were fitted to try and find the pdfs of the Busemann functions
+    """
+    return gamma.pdf(x,shape,scale=scale)
 
 def gamma_fit(x,y):
+    """
+    These functions were fitted to try and find the pdfs of the Busemann functions
+    """
     popt,pcov = opt.curve_fit(gammapdf,x,y,p0=(1,1))
     return popt
 
 def test_indep(bus1,bus2,ind_params=(2.0,2.0),ret=False, printout=True):
-    # indicator funs to test correlations  
+    """
+    tests independence, correlation and association of two busemann functions
+    """
     ind12 = lambda x,y: 1.0 if x >= ind_params[0] and y >= ind_params[1] else 0.0
     ind1 = lambda x: 1.0 if x >= ind_params[0] else 0.0
     ind2 = lambda x: 1.0 if x >= ind_params[1] else 0.0
@@ -412,6 +579,7 @@ def find_corr(bus1,bus2,ret=True):
     if ret:
         return (cov,cor[0,1])
 
+    # commented out code is an attempt to get 3d correlations
     # following does not work as yet.
     #def ind12(x,y,(bus1,bus2)):
         #y = [ 1.0 if b1 >= x and b2 >= y else 0.9 for (b1,b2) in zip(bus1,bus2) ]
@@ -484,6 +652,9 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False
         return x1,y
 
 def import_from_file(filename):
+    """
+    import saved busemann functions from file
+    """
     global bus1,bus2,N,mywtfun,g,svs,default_svs,mysvs
 
     import shelve
@@ -542,4 +713,7 @@ def import_from_file(filename):
                 print('error getting graph edge count')
 
 def absnormal(*args,**kargs):
+    """
+    absolute value of a normal distribution
+    """
     return abs(np.random.normal(*args,**kargs))    
