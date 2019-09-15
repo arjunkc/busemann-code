@@ -278,21 +278,26 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,N,wtfun,scaled=False):
+def return_times(g,N,wtfun,scaled=False,samples=1):
     """
     g: graph
     N: size of grid
     returns occupied vertex indices
     """
     edgewts = vertex_weights(wtfun,N)
+    avgtimes = np.zeros(N*N)
+    for i in range(samples):
+        times = g.shortest_paths_dijkstra(source=tuple_to_str(0,0),target=g.vs['name'],weights=edgewts)
+        # flatten times list using chain so that it is a single list
+        times = list(chain.from_iterable(times))
+        # convert to a list of positive times, 
+        # AND also divide by samples to make averaging easier
+        times = [ -1 * x / samples for x in times ]
+        avgtimes  = avgtimes + times
 
-    times = g.shortest_paths_dijkstra(source=tuple_to_str(0,0),target=g.vs['name'],weights=edgewts)
-    # flatten times list using chain so that it is a single list
-    times = list(chain.from_iterable(times))
-    # convert to a list of positive times
-    times = [ -1 * x for x in times ]
+    # divide by samples to get an average
 
-    return times
+    return avgtimes
 
 def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=True,interface=False):
     """
