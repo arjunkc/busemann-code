@@ -400,6 +400,106 @@ def exponential_limit_curve(x,y,mean=1,std=1):
     """
     return  mean*(x + y) + 2*std*np.sqrt(x * y)
 
+def list_to_matrix(g,l):
+    """
+    This is for easier interfacing with igraph
+    Converts a list of numbers [ corresponding to each vertex in the graph to 
+    to a matrix of numbers m, where m(v[k]) = l[k] 
+    """
+    vs = g.vs['name']
+    N = g.vcount()
+    m = np.zeros((N,N))
+    for i in range(N):
+        v = str_to_tuple(vs[i])
+        m[v[0],v[1]] = l[i]
+
+    # return numpy matrix
+    return m
+
+def matrix_to_list(g,m):
+    """
+    Again for easier interfacing with igraph
+    convert a matrix to a list 
+    Will assume that it is a numpy matrix
+    """
+    vs = g.vs['name']
+    N = int(np.sqrt(g.vcount()))
+    l = []
+    for i in range(N):
+        for j in range(N):
+            # uses the fact that the vertices of the graph are arranged in rows in list for
+            # (0,0),\ldots,(0,N-1),(1,0),\ldots,(1,N-1)
+            l.append(m[i,j])
+
+    return l
+        
+def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],svs=default_svs):
+    """
+    Will plot geodesics from source vertices specified by source vertices
+    Will find times from source vertices to all target vertices.
+    Then for each source vertex, you can see which vertices to label
+    by following the prescription:
+    if 
+    """
+    times_matrices = []
+    color_matrices = []
+    plots = []
+    edgewts = vertex_weights(wtfun,N)
+
+    default_vcolor = 'white'
+    vsize = int(50.0/np.sqrt(N))
+    #plot_options = {'vertex_size':vsize,'edge_arrow_size':0}
+    plot_options = {'vertex_size':vsize,'edge_arrow_size':0,'vertex_frame_color':'white'}
+
+    # make a list of times matrices N * N representing a time to each vertex, one for each source vertex
+    #import ipdb; ipdb.set_trace()
+    for z in range(len(svs)):
+        x = svs[z]
+        # make an array of the color black
+        cs = np.array([ [default_vcolor for i in range(N)] for j in range(N) ])
+        t = g.shortest_paths_dijkstra(source=tuple_to_str(x),target=g.vs['name'],weights=edgewts)
+        # flatten and then multiply by 1 to get last passage time
+        t = list(chain.from_iterable(t))
+        t = [ -1 * x for x in t ]
+        tmatrix = list_to_matrix(g,t)
+        i = N-1; j = N-1
+        # this loop should run in interpreted order N time
+        while i != x[0] or j != x[1]:
+            cs[i,j] = vcolors[z]
+            if i == x[0]:
+                j = j - 1
+            elif j == x[1]:
+                i = i - 1
+            elif tmatrix[i-1,j] >= tmatrix[i,j-1]:
+                i = i - 1
+            else:
+                j = j - 1
+        # have to append the last vertex to the list
+        cs[x[0],x[1]] = vcolors[z]
+
+        # plot graph
+        plot = plot_graph(g,layout,vertex_color=matrix_to_list(g,cs),**plot_options)
+
+        times_matrices.append(tmatrix)
+        color_matrices.append(cs)
+        plots.append(plot)
+    # form joint color matrix
+    # initialize with last color matrix
+    # following is pretty badly optimized code
+    joint_color_matrix = cs
+    for i in range(N):
+        for j in range(N):
+            for z in range(len(svs)):
+                if color_matrices[z][i,j] != default_vcolor:
+                    # will tend to have the last color that is not the default color
+                    joint_color_matrix[i,j] = color_matrices[z][i,j]
+
+    joint_color_vector = matrix_to_list(g,joint_color_matrix)
+    plot = plot_graph(g,layout,vertex_color=joint_color_vector,**plot_options)
+    plots.append(plot)
+
+    return plots,joint_color_vector
+
 def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','white'],meansamples=10000):
     """
     times contains first or last passage times to vertices
