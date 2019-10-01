@@ -92,7 +92,7 @@ def edgegen(N):
                 yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
 
 
-def graphgen(N,directed=True,noigraph_gen=False):
+def graphgen(N,directed=True,noigraph_gen=False,return_object=True):
     """
     This function creates a directed lattice in d=2 where edges go up or right.
     The ig.Graph.Lattice function does not appear to create directed graphs well.
@@ -128,7 +128,10 @@ def graphgen(N,directed=True,noigraph_gen=False):
         # make layout for plotting
         layoutlist = [ (x,y) for x in range(N) for y in range(N) ] 
 
-        return g,ig.Layout(layoutlist)
+        if return_object:
+            return g,ig.Layout(layoutlist)
+        else:
+            return g,layoutlist
         #return g,ig.Layout(layoutlist)
     else:
         return ([x for x in verts],[ x for x in edges ])
@@ -337,7 +340,7 @@ def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=T
     # if interface=True, occupied vertices will have the interface
     return occupied_vertices
 
-def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000):
+def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2}):
     """
     This plots the limit shape 
     times contains first or last passage times to vertices
@@ -346,6 +349,9 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
     """
 
     global dbg
+
+    contour_linestyles='dashed'
+    contour_linewidth=2
 
     try:
         samples = wtfun(size=meansamples)
@@ -373,9 +379,9 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
             # color[0] if occupied, color[1] if not
             if interface:
                 # if just the interface, might as well use plt.plot
-                plots.append(plt.plot(occupied_vertices[:,0],occupied_vertices[:,1],'r-'))
+                plots.append(plt.plot(occupied_vertices[:,0],occupied_vertices[:,1],'r-',**plot_options))
             else:
-                plots.append(plt.scatter(occupied_vertices[:,0],occupied_vertices[:,1],c=colors[0],s=0.5,edgecolors=None))
+                plots.append(plt.scatter(occupied_vertices[:,0],occupied_vertices[:,1],c=colors[0],s=0.5,edgecolors=None,**plot_options))
     except:
         traceback.print_exc(file=sys.stdout)  
 
@@ -387,7 +393,7 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
         #
         e = np.vectorize(exponential_limit_curve)
         z = e(x,y,mean=mean,std=std)
-        plots.append(plt.contour(x,y,z,[1]))
+        plots.append(plt.contour(x,y,z,[1],**exp_plot_options))
 
     return plots
     #return times,occulib(g,wtfun):
@@ -433,20 +439,24 @@ def matrix_to_list(g,m):
 
     return l
         
-def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],svs=default_svs):
+def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],vshapes = ['square','circle','triangle'],svs=[(0,0),(1,0),(2,0)]):
     """
     Will plot geodesics from source vertices specified by source vertices
     Will find times from source vertices to all target vertices.
     Then for each source vertex, you can see which vertices to label
-    by following the prescription:
-    if 
+    by following the prescription:  
+
+    Currently only works when default_svs <= 3. Because this is the length of the
+    vshapes and vcolors array.
     """
     times_matrices = []
     color_matrices = []
+    shape_matrices = []
     plots = []
     edgewts = vertex_weights(wtfun,N)
 
     default_vcolor = 'white'
+    default_shape = 'hidden'
     vsize = int(50.0/np.sqrt(N))
     #plot_options = {'vertex_size':vsize,'edge_arrow_size':0}
     plot_options = {'vertex_size':vsize,'edge_arrow_size':0,'vertex_frame_color':'white'}
@@ -457,6 +467,8 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],svs=de
         x = svs[z]
         # make an array of the color black
         cs = np.array([ [default_vcolor for i in range(N)] for j in range(N) ])
+        # make an array of the vertex shape
+        shapes = np.array([ [default_shape for i in range(N)] for j in range(N) ])
         t = g.shortest_paths_dijkstra(source=tuple_to_str(x),target=g.vs['name'],weights=edgewts)
         # flatten and then multiply by 1 to get last passage time
         t = list(chain.from_iterable(t))
@@ -466,6 +478,7 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],svs=de
         # this loop should run in interpreted order N time
         while i != x[0] or j != x[1]:
             cs[i,j] = vcolors[z]
+            shapes[i,j] = vshapes[z]
             if i == x[0]:
                 j = j - 1
             elif j == x[1]:
@@ -474,31 +487,39 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],svs=de
                 i = i - 1
             else:
                 j = j - 1
+        #ipdb.set_trace()
         # have to append the last vertex to the list
         cs[x[0],x[1]] = vcolors[z]
+        shapes[x[0],x[1]] = vshapes[z]
 
         # plot graph
-        plot = plot_graph(g,layout,vertex_color=matrix_to_list(g,cs),**plot_options)
+        plot = plot_graph(g,layout,vertex_color=matrix_to_list(g,cs),vertex_shape=matrix_to_list(g,shapes),**plot_options)
 
         times_matrices.append(tmatrix)
         color_matrices.append(cs)
+        shape_matrices.append(shapes)
         plots.append(plot)
     # form joint color matrix
     # initialize with last color matrix
     # following is pretty badly optimized code
     joint_color_matrix = cs
+    joint_shape_matrix = shapes 
     for i in range(N):
         for j in range(N):
             for z in range(len(svs)):
                 if color_matrices[z][i,j] != default_vcolor:
                     # will tend to have the last color that is not the default color
                     joint_color_matrix[i,j] = color_matrices[z][i,j]
+                if shape_matrices[z][i,j] != default_shape:
+                    # will tend to have the last color that is not the default color
+                    joint_shape_matrix[i,j] = shape_matrices[z][i,j]
 
     joint_color_vector = matrix_to_list(g,joint_color_matrix)
-    plot = plot_graph(g,layout,vertex_color=joint_color_vector,**plot_options)
+    joint_shape_vector = matrix_to_list(g,joint_shape_matrix)
+    plot = plot_graph(g,layout,vertex_color=joint_color_vector,vertex_shape=joint_shape_vector,**plot_options)
     plots.append(plot)
 
-    return plots,joint_color_vector
+    return plots,joint_color_vector,joint_shape_vector
 
 def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','white'],meansamples=10000):
     """
@@ -695,15 +716,20 @@ def find_corr(bus1,bus2,ret=True):
         #z1 = e12(x,y)
         #return z12,z1
 
-def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False,ret=False,printout=False,**kwargs):
+def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False,ret=False,printout=False,x_range=None,**kwargs):
     """
     plots correlation for two busemann functions. It plots it for indicators 1{X \leq a} 1{ Y \leq a} and so it only plots something reasonable when X and Y have the same signs for the most part. If X > 0 and Y < 0 this wouldn't work.
+
+    x_range =   tuple (a,b) containing the xrange over which to plot covariances. Useful when you want to compare covariances of two different wtfuns
     """
     global mywtfun
-    minr = min(min(bus1),min(bus2)) 
-    maxr = max(max(bus1),max(bus2))
-    delta = (maxr-minr)/plotpoints
-    x = np.linspace(minr + delta,maxr - delta,plotpoints)
+    if x_range == None:
+        minr = min(min(bus1),min(bus2)) 
+        maxr = max(max(bus1),max(bus2))
+        delta = (maxr-minr)/plotpoints
+        x = np.linspace(minr + delta,maxr - delta,plotpoints)
+    else:
+        x = np.linspace(x_range[0],x_range[1],plotpoints)
     y = []
 
     # disable debugging
@@ -734,7 +760,7 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False
         plt.savefig(figtitle + '.png')
 
     if ret:
-        return x1,y
+        return l1,x1,y
 
 def import_from_file(filename):
     """
