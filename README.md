@@ -9,7 +9,13 @@ The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You 
 
 # To run this code
 
-    exec(open('lpp-on-graph.py').read())
+Either 
+
+    import lppsim
+
+Or 
+
+    exec(open('lppsim.py').read())
     run_find_busemanns(runs=1000,number_of_vertices=100)
 
 This will run it 1000 times on a 100 x 100 grid with exponentially distributed passage times. 
