@@ -752,7 +752,7 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False
                 y.append(corr)
 
     l1, = plt.plot(x1,y,**kwargs)
-    figtitle = plottype + ', ' + mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples) + ', svs=' + str(mysvs)
+    figtitle = plottype + ' ' + mywtfun.__name__ + ' N=' + str(N) + ', samples=' + str(samples) + ' svs=' + str(mysvs)
     plt.title(figtitle)
     #plt.legend([ l1 ],[ plottype ])
     plt.legend() # legend controlled by plt.legend() keyword

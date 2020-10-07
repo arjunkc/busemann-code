@@ -5,7 +5,7 @@ Runs Dijkstra from the igraph library on the directed two dimensional lattice wi
 We're currently testing a hypothesis that Busemann functions ought to be negatively correlated.
 Busemann functions are differences of passage times (weighted shortest paths) between 3 vertices (Really it's the infinite version of such differences).
 
-The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You can also set the weight function using for the random weights.
+The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You can also set the weight function used for the random weights.
 
 # To run this code
 
