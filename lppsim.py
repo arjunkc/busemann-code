@@ -91,6 +91,12 @@ def edgegen(N):
             if j != N-1:
                 yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
 
+def lpp_num_of_vertices(g):
+    """
+    returns the number of vertices in a square grid graph
+    """
+    # god help you if do not get an integer
+    return int(g.vcount()**0.5)
 
 def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True):
     """
@@ -152,6 +158,7 @@ def vertex_weights(wtfun,N,lpp=True):
     generates vertex weights by making the outgoing edges from each vertex have the same weight
     there are N**2 vertices, and each has two outgoing edges, except for either i=N-1 or j=N-1, in which case we will have only one outgoing edge.
     """
+    #import ipdb; ipdb.set_trace()
     wt = []
     for i in range(N-1):
         gen = list(-wtfun(size=N-1))
@@ -281,16 +288,25 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,N,wtfun=np.random.exponential,scaled=False,samples=1):
+def return_times(g,wtfun=np.random.exponential,scaled=False,samples=1):
     """
     g: graph
     N: size of grid
     returns a list of occupied vertex indices
     
-    usage: t = return_times(g,N)
+    usage: t = return_times(g)
 
-    even though technically N can be computed from g, it's convenient to pass it to this function
     """
+    global N
+
+    #import ipdb; ipdb.set_trace() 
+    # globally set N to be the number of vertices associated with the graph
+    try:
+        if N != lpp_num_of_vertices(g):
+            N = lpp_num_of_vertices(g)
+    except:
+        N = lpp_num_of_vertices(g)
+
     edgewts = vertex_weights(wtfun,N)
     avgtimes = np.zeros(N*N)
     for i in range(samples):
@@ -309,12 +325,18 @@ def return_times(g,N,wtfun=np.random.exponential,scaled=False,samples=1):
 def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=True,interface=False):
     """
     this is a helper function. returns (scaled) coordinates so it can be plotted easily.
+
+    Essentially, it returns B_t/t where B_t = { (x,y) : G(x,y) <= t }. Here G is of coarse the passage time. By the LPP analog of the cox durrett theorem, { g(x,y) <= 1 - epsilon } \subset B_t/t \subset { g(x,y) <= 1 + epsilon }.
+
     pass times calculated by return times function
+
     a lot of the inefficiency could be avoided if graph has vertices ordered by x coordinate. fix graphgen. 
     vertex_list : obtained from g.vs['name']
     times : times for occupying each vertex in vertex list
     time_threshold: a number like 3. returns vertex sites that are smaller than 3.
     interface: returns only the interface between the "wet region" and "dry region"
+
+    For each x coordinate, you find the largest y such that the occupation time is smaller than the time threshold
     """
     #import pdb; pdb.set_trace()
 
@@ -346,7 +368,7 @@ def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=T
 
 def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2}):
     """
-    This plots the limit shape 
+    This plots the limit shape B_t/t where t is chosen to be N * mean/2
     times contains first or last passage times to vertices
     colors contains the occupied and unoccupied vertex colors
     returns plots using the igraph library to plot graphs.
@@ -390,6 +412,7 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
         traceback.print_exc(file=sys.stdout)  
 
     if compare_with_exponential:
+        # simply plots the limit shape using plt.contour {g_exp(x,y) <= 1}
         gridsize = 100
         xaxis = np.linspace(0,1/mean,gridsize)
         yaxis = np.linspace(0,1/mean,gridsize)
@@ -448,7 +471,7 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],vshape
     Will plot geodesics from source vertices specified by source vertices
     Will find times from source vertices to all target vertices.
     Then for each source vertex, you can see which vertices to label
-    by following the prescription:  
+    by following the dynamic programming principle:  
 
     Currently only works when default_svs <= 3. Because this is the length of the
     vshapes and vcolors array.
@@ -571,37 +594,54 @@ def print_keys_in_file(f):
         for x in shelf.keys():
             print(x)
 
-def save_to_file(runs,override_filename=''):
+def save_to_file(runs=0,vars_to_save=None,override_filename=''):
     """
     Saves the following parameters to a file
     g:  graph
-    N:  N x N grid size
-    busemanns: bus1,bus2 just computed
-    wtfun:  The weight function you just used.
-    svs:    The source vertices for the Busemann functions.
+
+    saves graph g by default, otherwise if vars_to_save is not empty, then it saves
+
+    vars_to_save is a dictionary of the form 
+    { 'var_name':var_value, ... }
+
+    automatically appends datetime.shelf to filename
+
+    busemanns, N, wtfun
+
+    busemanns : bus1,bus2 just computed
+    N         : N x N grid size
+    wtfun     : The weight function you just used.
+    svs       : The source vertices for the Busemann functions.
     """
 
     global bus1,bus2,mywtfun,N,g,mysvs,default_svs,myfilename
 
-    d = datetime.datetime.today().isoformat()
-
     # see if global filename set
     if override_filename == '':
         filename = 'busemanns-runs-' + str(runs) + '-N-' + str(N) \
-                + '-' + mywtfun.__name__ + '-' \
-                + d + '.shelf'
+                + '-' + mywtfun.__name__  
     else:
         filename = override_filename
 
+    # append datetime and shelf to filename
+    d = datetime.datetime.today().isoformat()
+    filename = filename + '-' + d + '.shelf'
+
     with shelve.open(filename,'c') as shelf:
-        shelf['busemanns'] = (bus1,bus2)
-        shelf['N'] = N
-        shelf['wtfun'] = mywtfun.__name__
-        try:
-            shelf['g'] = g
-        except:
-            print('Error saving graph. Not saving graph to file.')
-        shelf['svs'] = mysvs
+        if vars_to_save == None:
+            shelf['busemanns'] = (bus1,bus2)
+            shelf['N'] = N
+            shelf['wtfun'] = mywtfun.__name__
+            shelf['svs'] = mysvs
+            try:
+                shelf['g']  = g
+                # somehow this fails if run this way. I have tried to make it work by saving it in the interpreter, and it does appear to work
+            except:
+                print('Error saving graph. Not saving graph to file.')
+        else:
+            for v in vars_to_save:
+                shelf[v] = vars_to_save[v]
+        shelf.close()
 
 def plot_busemann_hist(bus1,bins=10,ret=False,bars=False):
     """

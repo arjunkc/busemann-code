@@ -16,9 +16,11 @@ Either
 Or 
 
     exec(open('lppsim.py').read())
-    run_find_busemanns(runs=1000,number_of_vertices=100)
 
-This will run it 1000 times on a 100 x 100 grid with exponentially distributed passage times. 
+Originally, the package was designed to compute busemann function distributions, which you invoke as fullows
+
+    bus1,bus2 = run_find_busemanns(runs=1000,number_of_vertices=100)
+
 It computes two pairs of functions bus1 and bus2, which corresponds the following differences of passage times:
 
 $$ 
@@ -37,11 +39,48 @@ You can test the correlations of the two Busemanns using
 
     test_indep(bus1,bus2)
 
-Other useful functions include
+This will run it 1000 times on a 100 x 100 grid with exponentially distributed passage times. 
+
+You can also **plot limit shapes** and compare it to the exponential solvable model. To do so,
+
+    N = 1000
+    g,layout = graphgen(N)
+
+It is convenient to define N globally before running. If N is defined globally, it will be used, if not `return_times` will set it.
+
+The graph generating algorithm takes a bit of time to generate, especially when you use N >= 1000.
+
+Then you need to specify a **weight function** (wtfun)
+
+    mywtfun = lambda **x: np.random.beta(1.5,2,**x)
+
+By default
+
+    wtfun = np.random.exponential
+
+To get a list of passage times to each vertex, while timing each run:
+
+    import time
+    start = time.time()
+    t = lppsim.return_times(g,wtfun=mywtfun)
+    print(time.time() - start)
+
+To plot the **limit shape** $B_t/t$, where $B_t = \{ T(x,y) \leq t \}$ and $t$ is some dynamically set threshold.
+
+    lppsim.plot_shape_pyplot(g,wtfun,N,t,compare_with_exponential=True,interface=True)
+
+# Useful Functions
 
 1.  graphgen. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
-1.  `vertex_weights`
+1.  `vertex_weights(wtfun,N,lpp=True)`: Generate vertex weights for an NxN nearest neighbor lattice. igraph only allows for edge weights, so this sets the edge $(i,j) \to (i+1,j)$ and $(i,j) \to (i,j+1)$ to be exactly the same. Returns negative weights for last passage percolation so that you can still run a standard first-passage time algorithm that allows for negative weights like Bellman-Ford.
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
+1.  `plot_graph`: Plots your generated graph. It's a good way to see if a lattice is actually generated for small $N$
+1.  `find_busemanns(g,N,wtfun,svs,geodesics=False)`: generates vertex weights using vertgen, finds passage times, then returns adjacent busemann functions for the source vertices list svs. 
+1.  `run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.random.exponential,svs=default_svs,geodesics=False)`: A wrapper for `find_busemanns` that sets sensible default weight function, a bunch of samples to average, and so on. Finally it saves to file, and it also tracks and prints runtime. Returns a pair of lists, `[bus1, bus2]` that gives the two busemann increments. The default source vertices are `[(0,0),(1,0),(1,0),(2,0)]`
+1.  `return_times(g,wtfun=np.random.exponential,scaled=False,samples=1)`: Another useful function. Returns passage times to the whol grid using a single source `(0,0)`. It takes a samples argument, that can be used to estimate expected passage times instead. 
+1.  `plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2})`: This plots the limit shape $B_t/t$ where $t$ is chosen to be $N * mean/2$ by default. You can plot a growing limit shape by passing a list to thresholds. interface says only plot the interface between the wet and dry region. The `compare_with_exponential` option plots the exponential limit (solvable) shape $\{(x,y) \colon g(x,y) = 1\}$ where $g(x,y) = m (x + y) + 2 \sigma \sqrt{ x y }$. The mean $m$ and $\sigma$ are estimate roughly by sampling from the given `wtfun`. The number of samples is controlled by `meansamples`. 
+1.  `plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],vshapes = ['square','circle','triangle'],svs=[(0,0),(1,0),(2,0)])`: Will plot geodesics from source vertices specified by source vertices Will find times from source vertices to all target vertices.  Then for each source vertex, you can see which vertices to label by following the dynamic programming principle for the last-passage time.
+1.  `plot_busemann_hist(bus1,bins=10,ret=False,bars=False)`: Plots a histogram so that you can see the distribution of some quantity. It doesn't have to be a busemann function.
 
 # Notes/Changelog
 
