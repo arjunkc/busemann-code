@@ -71,7 +71,7 @@ To plot the **limit shape** $B_t/t$, where $B_t = \{ T(x,y) \leq t \}$ and $t$ i
 
 # Useful Functions
 
-1.  graphgen. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
+1.  `graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True)`. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
 1.  `vertex_weights(wtfun,N,lpp=True)`: Generate vertex weights for an NxN nearest neighbor lattice. igraph only allows for edge weights, so this sets the edge $(i,j) \to (i+1,j)$ and $(i,j) \to (i,j+1)$ to be exactly the same. Returns negative weights for last passage percolation so that you can still run a standard first-passage time algorithm that allows for negative weights like Bellman-Ford.
 1.  `import_from_file` allows you to pick up things from a shelf with stored date. Two parameters are generally saved: N and the busemann functions.
 1.  `plot_graph`: Plots your generated graph. It's a good way to see if a lattice is actually generated for small $N$

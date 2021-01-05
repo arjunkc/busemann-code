@@ -322,6 +322,13 @@ def return_times(g,wtfun=np.random.exponential,scaled=False,samples=1):
 
     return avgtimes
 
+def find_time_threshold(times):
+    """
+    The limit shape makes the most sense when you truncate at min(t(0,N-1),t(N-1,0)). However, the times array is one dimensional, so you return the appropriate index
+    """
+    n = len(times)**0.5
+    return min(times[N-1],times[N*(N-1)])
+
 def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=True,interface=False):
     """
     this is a helper function. returns (scaled) coordinates so it can be plotted easily.
@@ -388,8 +395,8 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
             print('std = ',std)
         # if no threshold is given, then 
         if thresholds==None:
-            # the default threshold works well with scaled since it returns the "limit shape T[nx]
-            thresholds = [N * mean/2]
+            # the default threshold works well with scaled since it returns the limit shape B_t/t. The t used here is the time at which the coordinates (N,0) and (0,N) are hit
+            thresholds = [find_time_threshold(times)]
 
         if dbg>=2:
             print('time threshold:',thresholds)
