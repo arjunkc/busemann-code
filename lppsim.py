@@ -64,32 +64,51 @@ def try_addvertex(g,name):
         g.add_vertex(name=name)
     return g
 
-def vertgen(N):
+def vertgen(N,graph_shape='rectangle'):
     """
     generator for graphgen. 
     N = size of N x N 2d square lattice
     will generate vertices from (0,0) to (N-1,N-1)
+
+    graph_shape='rectangle' or 'triangle'
+    If chosen to be a triangle, helps cut down on computation time for limit shape computations. This is because you do not want to limit shape to be truncated.
     """
     i,j = 0,0
-    for i in range(0,N):
-        for j in range(0,N):
-            yield tuple_to_str(i,j)
+    if graph_shape == 'rectangle':
+        for i in range(0,N):
+            for j in range(0,N):
+                yield tuple_to_str(i,j)
+    elif graph_shape == 'triangle':
+        for i in range(0,N):
+            for j in range(0,N-i):
+                yield tuple_to_str(i,j)
 
-def edgegen(N):
+def edgegen(N,graph_shape='rectangle'):
     """
     generator for graphgen. 
     N = size of N x N 2d square lattice
     will generate 2*(N-1)*N edges  = 
     2 for each vertex (i,j) such that 0<= i < N-1 and 0 <= j < N-1 
     and then 2(N-1) more edges for the two boundary = 2 (N-1)^2 + 2(N-1)
+
+    graph_shape='rectangle' or 'triangle'
+    If chosen to be a triangle, helps cut down on computation time for limit shape computations. This is because you do not want to limit shape to be truncated.
     """
     i,j = 0,0
-    for i in range(0,N):
-        for j in range(0,N):
-            if i != N-1:
-                yield (tuple_to_str(i,j),tuple_to_str(i+1,j))
-            if j != N-1:
-                yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
+    if graph_shape == 'rectangle':
+        for i in range(0,N):
+            for j in range(0,N):
+                if i != N-1:
+                    yield (tuple_to_str(i,j),tuple_to_str(i+1,j))
+                if j != N-1:
+                    yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
+    elif graph_shape == 'triangle':
+        for i in range(0,N):
+            for j in range(0,N-i):
+                if i != N-1:
+                    yield (tuple_to_str(i,j),tuple_to_str(i+1,j))
+                if j != N-i-1:
+                    yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
 
 def lpp_num_of_vertices(g):
     """
@@ -98,7 +117,7 @@ def lpp_num_of_vertices(g):
     # god help you if do not get an integer
     return int(g.vcount()**0.5)
 
-def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True):
+def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,graph_shape='rectangle'):
     """
     This function creates a directed lattice in d=2 where edges go up or right.
     The ig.Graph.Lattice function does not appear to create directed graphs well.
@@ -106,9 +125,16 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True):
 
     Returns: a tuple (g,l) where g is an igraph object, and l is an igraph layout
 
-    igraph does not check for uniqueness when adding vertices by name.
+    directed=True   produces a directed lattice with only up/right paths
 
-    noigraph_gen does not generate the igraph object. This is mostly used for debugging. It works best if asgenerator is set to false so that you get a list of vertices and edges.
+    noigraph_gen=True does not generate the igraph object. This is mostly used for debugging. 
+
+    return_layout_as_object=True    returns the second return value as an igraph object
+
+    graph_shape='rectangle' or 'triangle'
+    If chosen to be a triangle, helps cut down on computation time for limit shape computations. This is because you do not want to limit shape to be truncated.
+
+    igraph does not check for uniqueness when adding vertices by name.
 
     Oct 25 2017 The for loop in this function is very slow. An iterator that yields is definitely better since the for loop is run by the igraph creation routine.
 
@@ -601,7 +627,7 @@ def print_keys_in_file(f):
         for x in shelf.keys():
             print(x)
 
-def save_to_file(runs=0,vars_to_save=None,override_filename=''):
+def save_to_file(runs=0,vars_to_save=None,override_filename='',filename_prefix='busemann-runs'):
     """
     Saves the following parameters to a file
     g:  graph
@@ -625,7 +651,7 @@ def save_to_file(runs=0,vars_to_save=None,override_filename=''):
 
     # see if global filename set
     if override_filename == '':
-        filename = 'busemanns-runs-' + str(runs) + '-N-' + str(N) \
+        filename = filename_prefix + str(runs) + '-N-' + str(N) \
                 + '-' + mywtfun.__name__  
     else:
         filename = override_filename

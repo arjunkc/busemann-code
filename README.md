@@ -69,6 +69,10 @@ To plot the **limit shape** $B_t/t$, where $B_t = \{ T(x,y) \leq t \}$ and $t$ i
 
     lppsim.plot_shape_pyplot(g,wtfun,N,t,compare_with_exponential=True,interface=True)
 
+To **save the data** to a python shelf file
+
+    lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override_filename='occupation times uniform 5000 x 5000 grid') 
+
 # Useful Functions
 
 1.  `graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True)`. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
