@@ -8,6 +8,8 @@ N = 8000
 shape='triangle'
 g,layout = lppsim.graphgen(N,graph_shape=shape)
 
+savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data'
+
 times = []
 pvals = [0.3,0.5,0.7]
 wtfuns = []
@@ -42,17 +44,21 @@ for wtfun in wtfuns:
         times.append(times_diag)
 
         # arbitrarily set
-        plt.savefig('/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/time constant ' +
-                wtfun[0] + ' versus exponential ' + str(N) + 'x' + str(N) + ' grid.svg')
-        plt.savefig('/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/time constant ' +
-                wtfun[0] + ' versus exponential ' + str(N) + 'x' + str(N) + ' grid.pdf')
+        plt.savefig(savedir + 'time constant ' +
+                wtfun[0] + ' versus exponential ' +
+                str(N) + 'x' + str(N) + ' grid.svg')
+        plt.savefig(savedir + 'time constant ' +
+                wtfun[0] + ' versus exponential ' +
+                str(N) + 'x' + str(N) + ' grid.pdf')
 
 
 # finally try to save all the things
 if not dry_run:
-    lppsim.save_to_file(vars_to_save={'x':x,'times':times,'wtfuns':[x[0] for x in wtfuns]},override_filename='/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/passage time for various weight functions on main antidiagonal ' + datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') + '.shelf')
+    lppsim.save_to_file(vars_to_save={'x':x,'times':times,'wtfuns':[x[0] for x in wtfuns]},
+            override_filename=savedir + 'passage time for various weight functions on main antidiagonal ' +
+            datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') + '.shelf')
 
-    csv_file = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/passage time for various weight functions on main antidiagonal ' + datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') + '.csv'
+    csv_file = savedir + 'passage time for various weight functions on main antidiagonal ' + datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') + '.csv'
     f = open(csv_file,'w')
     a=csv.writer(f)
     a.writerow(['x'] + [y[0] for y in wtfuns])
