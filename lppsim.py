@@ -86,13 +86,17 @@ def vertgen(N,graph_shape='rectangle'):
 def edgegen(N,graph_shape='rectangle'):
     """
     generator for graphgen. 
-    N = size of N x N 2d square lattice
-    will generate 2*(N-1)*N edges  = 
-    2 for each vertex (i,j) such that 0<= i < N-1 and 0 <= j < N-1 
-    and then 2(N-1) more edges for the two boundary = 2 (N-1)^2 + 2(N-1)
 
-    graph_shape='rectangle' or 'triangle'
-    If chosen to be a triangle, helps cut down on computation time for limit shape computations. This is because you do not want to limit shape to be truncated.
+    if graph_shape='rectangle'
+
+    if graph_shape='rectangle'
+        N = size of N x N 2d square lattice
+        will generate 2*(N-1)*N edges  = 
+        2 for each vertex (i,j) such that 0<= i < N-1 and 0 <= j < N-1 
+        and then 2(N-1) more edges for the two boundary = 2 (N-1)^2 + 2(N-1)
+
+    if graph_shape='triangle'
+        will generate all edges for vertices in the triangle with vertices (0,N-1), (N-1,0). All vertices have outgoing edges, except for vertices on the diagonal x + y = N - 1 
     """
     i,j = 0,0
     if graph_shape == 'rectangle':
@@ -105,17 +109,25 @@ def edgegen(N,graph_shape='rectangle'):
     elif graph_shape == 'triangle':
         for i in range(0,N):
             for j in range(0,N-i):
-                if i != N-1:
+                if i + j < N-1:
+                    # if (i,j) not on the antidiagonal, yield both outgoing edges
                     yield (tuple_to_str(i,j),tuple_to_str(i+1,j))
-                if j != N-i-1:
                     yield (tuple_to_str(i,j),tuple_to_str(i,j+1))
 
-def lpp_num_of_vertices(g):
+def lpp_num_of_vertices(g,graph_shape='rectangle'):
     """
-    returns the number of vertices in a square grid graph
+    returns the size maximal horizontal of a square or triangular grid graph
+    That is, if you only have a graph saved, it will produce N. Useful when you load a graph from a file and you want to discover N.
+     
+    Feb 21 2021 Should be modified to include graph_shape
     """
     # god help you if do not get an integer
-    return int(g.vcount()**0.5)
+
+    if graph_shape == 'rectangle':
+        return np.isqrt(g.vcount())
+    elif graph_shape == 'triangle':
+        # solve N(N+1)/2 = v
+        return (math.isqrt(8*g.vcount() + 1)-1) // 2
 
 def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,graph_shape='rectangle'):
     """
@@ -125,7 +137,7 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,gra
 
     Returns: a tuple (g,l) where g is an igraph object, and l is an igraph layout
 
-    directed=True   produces a directed lattice with only up/right paths
+    directed=True   produces a directed lattice with only up/right paths. Currently the other functions cannot handle the undirected lattice
 
     noigraph_gen=True does not generate the igraph object. This is mostly used for debugging. 
 
@@ -141,10 +153,15 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,gra
     Oct 24 2017 This is a fairly inefficient function. Probably easier to add vertices by generating a list of names first. noigraph_gen simply retuns edges and vertices
     """
 
-    if dbg >= 3:
-        print('running graphgen as generator')
-    verts = vertgen(N)
-    edges = edgegen(N)
+    if dbg >= 1:
+        print('Start generating graph: ' + time.asctime())
+
+    verts = vertgen(N,graph_shape=graph_shape)
+    edges = edgegen(N,graph_shape=graph_shape)
+
+
+    if dbg >= 1:
+        print('Done generating vertex and edge lists: ' + time.asctime())
 
     # make a graph layout for plotting
     if not noigraph_gen:
@@ -158,7 +175,13 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,gra
             print('Error in generating igraph')
 
         # make layout for plotting
-        layoutlist = [ (x,y) for x in range(N) for y in range(N) ] 
+        if graph_shape=='rectangle':
+            layoutlist = [ (x,y) for x in range(N) for y in range(N) ] 
+        elif graph_shape=='triangle':
+            layoutlist = [ (x,y) for x in range(N) for y in range(N - x) ] 
+
+    if dbg >= 1:
+        print('Done generating igraph object and layout: ' + time.asctime())
 
         if return_layout_as_object:
             return g,ig.Layout(layoutlist)
@@ -179,20 +202,37 @@ def plot_graph(g,graphlayout=None,**kwargs):
         
     return ig.plot(g,layout = graphlayout,**kwargs)
 
-def vertex_weights(wtfun,N,lpp=True):
+def vertex_weights(wtfun,N,graph_shape='rectangle',lpp=True):
     """
-    generates vertex weights by making the outgoing edges from each vertex have the same weight
-    there are N**2 vertices, and each has two outgoing edges, except for either i=N-1 or j=N-1, in which case we will have only one outgoing edge.
+    generates vertex weights by making the outgoing edges from each vertex have the same weight.
+
+    Only works on the directed Z^2 lattice, where all edges associated with a source vertex are generated at once
+
+    lpp=True returns -wtfun weights, and lpp=False returns positive wtfun
+
+    Now, you just pass the number of vertices to it, and it will give you a doubled list of weight, which indicates that both weights are equal.
+
+    Originally, I passed N, the size of the rectangular grid. In this case, there are N**2 vertices, and each has two outgoing edges, except for either i=N-1 or j=N-1, in which case we will have only one outgoing edge.
     """
     #import ipdb; ipdb.set_trace()
-    wt = []
-    for i in range(N-1):
-        gen = list(-wtfun(size=N-1))
-        wt = wt + [ val for pair in zip(gen,gen) for val in pair ]
-        # one for the last edge 
-        wt = wt + list(-wtfun(size=1))
-    # one for the last row of weights
-    wt = wt + list(-wtfun(size=N-1))
+
+    if graph_shape == 'rectangle':
+        wt = []
+        # for loops are very slow here, so you have to make sure you're not running N**2 loop
+        # list construction is relatively fast
+        for i in range(N-1):
+            gen = list(-wtfun(size=N-1))
+            wt = wt + [ val for pair in zip(gen,gen) for val in pair ]
+            # one for the last edge 
+            wt = wt + list(-wtfun(size=1))
+        # one for the last row of weights
+        wt = wt + list(-wtfun(size=N-1))
+    elif graph_shape == 'triangle':
+        # generate negative weights
+        # num vertices that have outgoing edges = (N-1)*N/2
+        num_verts = (N-1)*N // 2
+        gen = list(-wtfun(size=num_verts))
+        wt = [ val for pair in zip(gen,gen) for val in pair ]
 
     if dbg>=3:
         print(len(wt))
@@ -203,7 +243,7 @@ def vertex_weights(wtfun,N,lpp=True):
 
     return wt
 
-def find_busemanns(g,N,wtfun,svs,geodesics=False):
+def find_busemanns(g,N,wtfun,svs,geodesics=False,graph_shape='rectangle'):
     """
     takes number of vertices, and weight function. Since this is last passage percolation with positive weights, remember to give it a negative weight function. Then one can safely use dijkstra and throw in an extra minus sign to find the last passage time.
 
@@ -214,7 +254,7 @@ def find_busemanns(g,N,wtfun,svs,geodesics=False):
 
     # generate random weights using wtfun
     # returns edge weights made so that all weights incident to an edge are equal
-    edgewts = vertex_weights(wtfun,N)
+    edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
 
     if dbg >= 2:
         print("Done Generating weights")
@@ -314,27 +354,38 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,wtfun=np.random.exponential,scaled=False,samples=1):
+def return_times(g,wtfun=np.random.exponential,use_vertex_weights=True,scaled=False,samples=1,graph_shape='rectangle'):
     """
     g: graph
-    N: size of grid
     returns a list of occupied vertex indices
     
     usage: t = return_times(g)
 
     """
-    global N
-
     #import ipdb; ipdb.set_trace() 
-    # globally set N to be the number of vertices associated with the graph
-    try:
-        if N != lpp_num_of_vertices(g):
-            N = lpp_num_of_vertices(g)
-    except:
-        N = lpp_num_of_vertices(g)
 
-    edgewts = vertex_weights(wtfun,N)
-    avgtimes = np.zeros(N*N)
+    # check if N value correctly set
+    try:
+        if N != lpp_num_of_vertices(g,graph_shape=graph_shape):
+            N = lpp_num_of_vertices(g,graph_shape=graph_shape)
+    except:
+        N = lpp_num_of_vertices(g,graph_shape=graph_shape)
+    
+    # Make edge weights by putting the same value of the edge weight on both outgoing edges. This can be slow because of loops in edge generation see vertex_weights()
+    if dbg>=1:
+        print('Start generating weights: ' + time.asctime())
+    if use_vertex_weights:
+        # call custom function that puts the same weight on all outgoing edges from a vertex
+        edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
+    else: 
+        # edge weights: one weight for each edge
+        # returns negative weights for last-passage percolation
+        edgewts = -wtfun(size=g.ecount())
+    if dbg>=1:
+        print('End generating weights: ' + time.asctime())
+
+    avgtimes = np.zeros(g.vcount())  # contains the averaged passage time to each vertex
+
     for i in range(samples):
         times = g.shortest_paths_dijkstra(source=tuple_to_str(0,0),target=g.vs['name'],weights=edgewts)
         # flatten times list using chain so that it is a single list
@@ -348,14 +399,20 @@ def return_times(g,wtfun=np.random.exponential,scaled=False,samples=1):
 
     return avgtimes
 
-def find_time_threshold(times):
+def find_time_threshold(g,N,times):
     """
     The limit shape makes the most sense when you truncate at min(t(0,N-1),t(N-1,0)). However, the times array is one dimensional, so you return the appropriate index
-    """
-    n = len(times)**0.5
-    return min(times[N-1],times[N*(N-1)])
 
-def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=True,interface=False):
+    This now generalizes to the triangular grid
+    """
+
+    # find index of leftmost and rightmost vertices
+    xmax_vertex = g.vs.find(name='0,'+str(N-1)).index
+    ymax_vertex = g.vs.find(name=str(N-1)+',0').index
+
+    return min(times[xmax_vertex],times[ymax_vertex])
+
+def return_occupied_vertex_coordinates(vertex_list,N,times,time_threshold,scaled=True,interface=False,graph_shape='rectangle'):
     """
     this is a helper function. returns (scaled) coordinates so it can be plotted easily.
 
@@ -373,25 +430,33 @@ def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=T
     """
     #import pdb; pdb.set_trace()
 
-    N = int(np.sqrt(len(vertex_list))) # assuming only N**2 vertices are obtained.
     occupied_vertices = []
     j =  0
     for i in range(N):
         j = 0
         try:
-            while j < N and times[i*N + j] <= time_threshold:
-                if not interface:
+            # row by row, find the largest vertex smaller than the threshold
+            if graph_shape == 'rectangle':
+                while j < N and times[i*N + j] <= time_threshold:
                     z = str_to_tuple(vertex_list[i*N+j])
-                    occupied_vertices.append(z)
-                j = j + 1
+                    if not interface:
+                        occupied_vertices.append(z)
+                    j = j + 1
+            elif graph_shape == 'triangle':
+                # num of vertices in i rows
+                vert_in_i_rows = i*(2*N-i+1)//2
+                while j < N - i and times[vert_in_i_rows + j] <= time_threshold:
+                    z = str_to_tuple(vertex_list[vert_in_i_rows+j])
+                    if not interface:
+                        occupied_vertices.append(z)
+                    j = j + 1
         except:
             print(i,j)
             traceback.print_exc(file=sys.stdout)  
+        # append only the last vertex if interface
+        if interface:
+            occupied_vertices.append(z)
 
-        # append only the last one before j jumped
-        if interface and j > 0:
-                z = str_to_tuple(vertex_list[i*N+j-1])
-                occupied_vertices.append(z)
     # if scaled is true, scale all the vertices
     if scaled:
         occupied_vertices = [(x/time_threshold,y/time_threshold) for x,y in occupied_vertices]
@@ -399,13 +464,15 @@ def return_occupied_vertex_coordinates(vertex_list,times,time_threshold,scaled=T
     # if interface=True, occupied vertices will have the interface
     return occupied_vertices
 
-def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2}):
+def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2},graph_shape='rectangle'):
     """
     This plots the limit shape B_t/t where t is chosen to be N * mean/2
     times contains first or last passage times to vertices
     colors contains the occupied and unoccupied vertex colors
     returns plots using the igraph library to plot graphs.
     """
+
+    #import ipdb; ipdb.set_trace()
 
     global dbg
 
@@ -422,7 +489,7 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
         # if no threshold is given, then 
         if thresholds==None:
             # the default threshold works well with scaled since it returns the limit shape B_t/t. The t used here is the time at which the coordinates (N,0) and (0,N) are hit
-            thresholds = [find_time_threshold(times)]
+            thresholds = [find_time_threshold(g,N,times)]
 
         if dbg>=2:
             print('time threshold:',thresholds)
@@ -433,7 +500,7 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
 
         plots = []
         for x in thresholds:
-            occupied_vertices = return_occupied_vertex_coordinates(vertices,times,x,scaled=True,interface=interface)
+            occupied_vertices = return_occupied_vertex_coordinates(vertices,N,times,x,scaled=True,interface=interface,graph_shape=graph_shape)
             occupied_vertices = np.array(occupied_vertices)
             # color[0] if occupied, color[1] if not
             if interface:
@@ -450,7 +517,6 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
         xaxis = np.linspace(0,1/mean,gridsize)
         yaxis = np.linspace(0,1/mean,gridsize)
         x,y = np.meshgrid(xaxis,yaxis)
-        #
         e = np.vectorize(exponential_limit_curve)
         z = e(x,y,mean=mean,std=std)
         plots.append(plt.contour(x,y,z,[1],**exp_plot_options))
@@ -617,6 +683,43 @@ def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','whit
 
     return plots
     #return times,occupied_vertices
+
+def times_on_diagonal(g,N,times):
+    """
+    Finds times along antidiagonal line x + y = N - 1
+    Uses igraph routines, so works for both triangular and rectangular grid
+    """
+
+    verts_diag = [ g.vs.find(name=tuple_to_str(x,N-1-x)).index for x in range(0,N)]
+    # find times along diagonal
+    times_diag = [ times[x]/N for x in verts_diag ] 
+    return times_diag
+
+def plot_time_constant(g,wtfun,N,times,compare_with_exponential=True,meansamples=10000,plot_options={'linewidth':2,'color':'red'},exp_plot_options={'color':'blue','linestyle':'dashed','linewidth':2}):
+
+    """
+    Simply plots time constant along the diagonal line x + y = N
+    """
+    samples = wtfun(size=meansamples)
+    mean = np.mean(samples)
+    std = np.std(samples)
+    if dbg>=1:
+        print('mean = ',mean)
+        print('std = ',std)
+
+    times_diag = times_on_diagonal(g,N,times)
+        
+    x = np.arange(0,1,1/N)
+    plt.plot(x,times_diag,**plot_options)
+    
+    if compare_with_exponential:
+        # simply plots the limit shape using plt.contour {g_exp(x,y) <= 1}
+        e = np.vectorize(exponential_limit_curve)
+        y = 1 - x
+        z = e(x,y,mean=mean,std=std)
+        plt.plot(x,z,**exp_plot_options)
+
+    return x,times_diag
 
 def print_keys_in_file(f):
     """

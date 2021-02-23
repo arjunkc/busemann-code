@@ -52,26 +52,36 @@ The graph generating algorithm takes a bit of time to generate, especially when 
 
 Then you need to specify a **weight function** (wtfun)
 
-    mywtfun = lambda **x: np.random.beta(1.5,2,**x)
+```
+mywtfun = lambda **x: np.random.beta(1.5,2,**x)
+```
 
 By default
 
-    wtfun = np.random.exponential
+```
+wtfun = np.random.exponential
+```
 
 To get a list of passage times to each vertex, while timing each run:
 
-    import time
-    start = time.time()
-    t = lppsim.return_times(g,wtfun=mywtfun)
-    print(time.time() - start)
+```
+import time
+start = time.time()
+t = lppsim.return_times(g,wtfun=mywtfun)
+print(time.time() - start)
+```
 
 To plot the **limit shape** $B_t/t$, where $B_t = \{ T(x,y) \leq t \}$ and $t$ is some dynamically set threshold.
 
-    lppsim.plot_shape_pyplot(g,wtfun,N,t,compare_with_exponential=True,interface=True)
+```
+lppsim.plot_shape_pyplot(g,wtfun,N,t,compare_with_exponential=True,interface=True)
+```
 
 To **save the data** to a python shelf file
 
-    lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override_filename='occupation times uniform 5000 x 5000 grid') 
+```
+lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override_filename='occupation times uniform 5000 x 5000 grid') 
+```
 
 # Useful Functions
 
@@ -87,6 +97,8 @@ To **save the data** to a python shelf file
 1.  `plot_busemann_hist(bus1,bins=10,ret=False,bars=False)`: Plots a histogram so that you can see the distribution of some quantity. It doesn't have to be a busemann function.
 
 # Notes/Changelog
+
+Feb 22 2021 Implemented restricting the square grid to a triangle 0,(N,0),(0,N) so that it's better for time-constant computation. Can get to larger N values this way. Had to make a lot of changes to handle both rectangular and triangular grids this way. Changed edgegen so that it runs faster. for loops are anathema, list constructors are fast, numpy operations are fast. The new vertex_weights function is also very fast for the triangle grid, since every vertex in the triangle has exactly two edges, so you can use vectorized operations for weight generation.
 
 Jun 21 2019 The problem with `get_all_shortest_paths` is that it requires wtfun to be positive! We have negative weight function since we want to find the LONGEST path. So we're a bit doomed here. So I will have to find the shortest path using the usual backward iteration. If geodesics == True, return all passage times for each of the source vertices. Then move backwards to get the shortest paths.
 
