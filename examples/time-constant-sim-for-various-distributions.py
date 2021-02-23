@@ -1,3 +1,4 @@
+# requires lz4 for compression. comment out line if necessary
 import time,csv,subprocess
 start = time.time()
 

@@ -1,3 +1,5 @@
+savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data'
+
 times = []
 pvals = [0.3,0.5,0.6,0.7]
 for p in pvals:
@@ -16,12 +18,17 @@ for p in pvals:
     fig.set_size_inches([15,15/1.33])
 
     # plot and compare with interface
-    plot = lppsim.plot_shape_pyplot(g,wtfun,N,t,compare_with_exponential=True,interface=True) 
+    plot = lppsim.plot_shape_pyplot(g,wtfun,N,t,
+            compare_with_exponential=True,interface=True) 
 
     # arbitrarily set
-    plt.savefig('/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/limit shape bernoulli p=' + str(p) + ' versus exponential ' + str(N) + 'x' + str(N) + ' grid.svg')
+    plt.savefig(savedir + 'limit shape bernoulli p=' + str(p) +
+            ' versus exponential ' +
+            str(N) + 'x' + str(N) + ' grid.svg')
 
 
 # finally try to save all the things
-lppsim.save_to_file(vars_to_save={'times':times,'pvals':pvals},override_filename='limit shape bernoulli times p = ' + str(pvals) + ' ' + datetime.datetime.today().isoformat() + '.shelf')
+lppsim.save_to_file(vars_to_save={'times':times,'pvals':pvals},override_filename=savedir + 'limit shape bernoulli times p = ' +
+        str(pvals) + ' ' + datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') 
+        + '.shelf')
 
