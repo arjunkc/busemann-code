@@ -7,17 +7,28 @@ lppsim.dbg=1
 print('Starting at ',time.asctime())
 N = 8000
 shape='triangle'
-g,layout = lppsim.graphgen(N,graph_shape=shape)
 
-savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data'
+try:
+    # g or layout may not even be defined
+    if lppsim.lpp_num_of_vertices(g,graph_shape=shape) != N:
+        print('N and g do not match')
+        #g,layout = lppsim.graphgen(N,graph_shape=shape)
+except: 
+    # if N is not the correct number for the graph
+    print('N and g do not match')
+    #g,layout = lppsim.graphgen(N,graph_shape=shape)
+
+savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data/'
 
 times = []
 pvals = [0.3,0.5,0.7]
+#pvals = [0.3,0.5]
 wtfuns = []
 
 for p in pvals:
     #import ipdb; ipdb.set_trace()
-    wtfuns.append(('bernoulli p='+str(p),lambda **x: np.random.binomial(1,p,**x)))
+    # note the p=p construct that creates a localizes p, otherwise the array will all contain a lambda with a reference to the last value of p
+    wtfuns.append(('bernoulli p='+str(p),lambda p=p,**x: np.random.binomial(1,p,**x)))
 
 # other distributions 
 wtfuns = wtfuns + [('uniform',np.random.uniform),
@@ -29,9 +40,18 @@ wtfuns = wtfuns + [('uniform',np.random.uniform),
 
 
 # set figure parameters
-plt.rc('font',size=16)
+plt.rc('font',size=20)
+# plt.rc('text',usetex=True) #makes tex like fonts, but takes a while to generate
 # autolayout removes the borders, more appropriate for latex, I think
 plt.rc('figure',figsize=[15,15/1.33],autolayout=True)
+plt.rc('xtick',labelsize=24)
+plt.rc('ytick',labelsize=24)
+
+# unclear what these things do
+#plt.rc('xtick.minor',top=False)
+#plt.rc('xtick.minor',bottom=False)
+#plt.rc('ytick.minor',right=False)
+#plt.rc('ytick.minor',left=False)
 
 for wtfun in wtfuns:
     t = lppsim.return_times(g,wtfun=wtfun[1],graph_shape=shape)

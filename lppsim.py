@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 # traceback
 import traceback
-
+a
 #import pdb; pdb.set_trace()
 
 # global variables
@@ -124,7 +124,7 @@ def lpp_num_of_vertices(g,graph_shape='rectangle'):
     # god help you if do not get an integer
 
     if graph_shape == 'rectangle':
-        return np.isqrt(g.vcount())
+        return math.isqrt(g.vcount())
     elif graph_shape == 'triangle':
         # solve N(N+1)/2 = v
         return (math.isqrt(8*g.vcount() + 1)-1) // 2
@@ -183,11 +183,11 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,gra
     if dbg >= 1:
         print('Done generating igraph object and layout: ' + time.asctime())
 
-        if return_layout_as_object:
-            return g,ig.Layout(layoutlist)
-        else:
-            return g,layoutlist
-        #return g,ig.Layout(layoutlist)
+    if return_layout_as_object:
+        return g,ig.Layout(layoutlist)
+    else:
+        return g,layoutlist
+    #return g,ig.Layout(layoutlist)
     else:
         return ([x for x in verts],[ x for x in edges ])
 
@@ -695,30 +695,50 @@ def times_on_diagonal(g,N,times):
     times_diag = [ times[x]/N for x in verts_diag ] 
     return times_diag
 
-def plot_time_constant(g,wtfun,N,times,compare_with_exponential=True,meansamples=10000,plot_options={'linewidth':2,'color':'red'},exp_plot_options={'color':'blue','linestyle':'dashed','linewidth':2}):
+def plot_exponential_time_constant(
+        x,
+        wtfun,
+        mean=None,
+        std=None,
+        meansamples=1000000,
+        exp_plot_options={'color':'blue','linestyle':'dashed','linewidth':4}):
+
+    """
+    plots exponential curve with parameters mean and std on the antidiagonal (x,1-x)
+
+    seems to need at least a million samples to get the mean and standard correct to a few decimal places
+    """
+
+    # sample from the weight distribution
+    # if both mean and std are not specified
+    if mean==None or std==None:
+        samples = wtfun(size=meansamples)
+        mean = np.mean(samples)
+        std = np.std(samples)
+        if dbg>=1:
+            print('mean = ',mean)
+            print('std = ',std)
+
+    #n = plot_points # arbitrary parameter
+    #x = np.arange(0,1,1/plot_points)
+    e = np.vectorize(exponential_limit_curve)
+    y = 1 - x
+    z = e(x,y,mean=mean,std=std)
+    plt.plot(x,z,**exp_plot_options)
+    return x,z
+
+
+def plot_time_constant(g,wtfun,N,times,plot_options={'linewidth':2,'color':'red'}):
 
     """
     Simply plots time constant along the diagonal line x + y = N
     """
-    samples = wtfun(size=meansamples)
-    mean = np.mean(samples)
-    std = np.std(samples)
-    if dbg>=1:
-        print('mean = ',mean)
-        print('std = ',std)
 
     times_diag = times_on_diagonal(g,N,times)
         
     x = np.arange(0,1,1/N)
     plt.plot(x,times_diag,**plot_options)
     
-    if compare_with_exponential:
-        # simply plots the limit shape using plt.contour {g_exp(x,y) <= 1}
-        e = np.vectorize(exponential_limit_curve)
-        y = 1 - x
-        z = e(x,y,mean=mean,std=std)
-        plt.plot(x,z,**exp_plot_options)
-
     return x,times_diag
 
 def print_keys_in_file(f):
