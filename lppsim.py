@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 
 # traceback
 import traceback
-a
 #import pdb; pdb.set_trace()
 
 # global variables
