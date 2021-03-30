@@ -179,15 +179,15 @@ def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,gra
         elif graph_shape=='triangle':
             layoutlist = [ (x,y) for x in range(N) for y in range(N - x) ] 
 
-    if dbg >= 1:
-        print('Done generating igraph object and layout: ' + time.asctime())
+        if dbg >= 1:
+            print('Done generating igraph object and layout: ' + time.asctime())
 
-    if return_layout_as_object:
-        return g,ig.Layout(layoutlist)
+        if return_layout_as_object:
+            return g,ig.Layout(layoutlist)
+        else:
+            return g,layoutlist
     else:
-        return g,layoutlist
-    #return g,ig.Layout(layoutlist)
-    else:
+        # if noigraph_gen == True
         return ([x for x in verts],[ x for x in edges ])
 
 def plot_graph(g,graphlayout=None,**kwargs):
