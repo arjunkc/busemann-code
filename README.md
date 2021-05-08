@@ -83,6 +83,13 @@ To **save the data** to a python shelf file
 lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override_filename='occupation times uniform 5000 x 5000 grid') 
 ```
 
+# Requirements
+
+1.  cython
+2.  numpy, scipy
+3.  python-igraph
+4.  matplotlib
+
 # Useful Functions
 
 1.  `graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True)`. generates a graph with a given number of vertices. automatically called by `run_find_busemanns`
@@ -97,6 +104,10 @@ lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override
 1.  `plot_busemann_hist(bus1,bins=10,ret=False,bars=False)`: Plots a histogram so that you can see the distribution of some quantity. It doesn't have to be a busemann function.
 
 # Notes/Changelog
+
+May 08 2021 Made some modules compiled via cython so that they run faster. This speeds up graph generation 10-fold. This is because edgegen, vertgen and others have a bunch of for loops in them. You may need to run setup.py to compile to cython.
+
+Apr 08 2021 The rectangle graph is not optimized, and I should run a profiler that does line by line profiling. The graph generation is awfully slow.
 
 Feb 22 2021 Implemented restricting the square grid to a triangle 0,(N,0),(0,N) so that it's better for time-constant computation. Can get to larger N values this way. Had to make a lot of changes to handle both rectangular and triangular grids this way. Changed edgegen so that it runs faster. for loops are anathema, list constructors are fast, numpy operations are fast. The new vertex_weights function is also very fast for the triangle grid, since every vertex in the triangle has exactly two edges, so you can use vectorized operations for weight generation.
 
