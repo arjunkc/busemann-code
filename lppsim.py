@@ -23,7 +23,8 @@ import traceback
 
 # import cython
 import pyximport; pyximport.install()
-from compiled import * 
+#from compiled import * 
+from compiled import *
 
 try:
     dbg

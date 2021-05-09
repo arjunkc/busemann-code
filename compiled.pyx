@@ -51,8 +51,8 @@ def vertex_weights(wtfun,N,graph_shape='rectangle',lpp=True):
         gen = list(-wtfun(size=num_verts))
         wt = [ val for pair in zip(gen,gen) for val in pair ]
 
-    if dbg>=3:
-        print(len(wt))
+    #if lppsim.dbg>=3:
+        #print(len(wt))
 
     if not lpp:
         # then its fpp; make the weights positive. 
