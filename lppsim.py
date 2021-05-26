@@ -241,7 +241,7 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,m,wtfun=np.random.exponential,use_vertex_weights=True,use_edge_weights=False,scaled=False,samples=1,graph_shape='rectangle'):
+def return_times(g,wtfun=np.random.exponential,use_vertex_weights=True,scaled=False,samples=1,graph_shape='rectangle'):
     """
     g: graph
     returns a list of occupied vertex indices
@@ -264,8 +264,6 @@ def return_times(g,m,wtfun=np.random.exponential,use_vertex_weights=True,use_edg
     if use_vertex_weights:
         # call custom function that puts the same weight on all outgoing edges from a vertex
         edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
-    elif use_edge_weights:
-        edgewts = wtfun(g,m,N)
     else: 
         # edge weights: one weight for each edge
         # returns negative weights for last-passage percolation
@@ -353,7 +351,7 @@ def return_occupied_vertex_coordinates(vertex_list,N,times,time_threshold,scaled
     # if interface=True, occupied vertices will have the interface
     return occupied_vertices
 
-def plot_shape_pyplot(g,wtfun,m,N,times,use_edge_weights=False,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2},graph_shape='rectangle'):
+def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2},graph_shape='rectangle'):
     """
     This plots the limit shape B_t/t where t is chosen to be N * mean/2
     times contains first or last passage times to vertices
@@ -369,14 +367,9 @@ def plot_shape_pyplot(g,wtfun,m,N,times,use_edge_weights=False,compare_with_expo
     contour_linewidth=2
 
     try:
-        if not use_edge_weights:
-            samples = wtfun(size=meansamples)
-            mean = np.mean(samples)
-            std = np.std(samples)
-        else:
-            samples = wtfun(g,m,N=meansamples)
-            mean = np.mean(samples)
-            std = np.std(samples)
+        samples = wtfun(size=meansamples)
+        mean = np.mean(samples)
+        std = np.std(samples)
         if dbg>=1:
             print('mean = ',mean)
             print('std = ',std)
@@ -921,64 +914,3 @@ def absnormal(*args,**kargs):
     absolute value of a normal distribution
     """
     return abs(np.random.normal(*args,**kargs))    
-
-def wtfun_periodic(g,m,N,use_weight_label=False):
-    ecount = 2*(N-1)*N
-    weights = np.zeros(ecount)
-
-    # assign weights to base edges
-    tempSize = 2*(m-1)*m-2*(m-1)
-    tempWeight = -np.random.normal(size=tempSize)
-
-    k = 0
-    for i in range(m-1):
-        for j in range(m-1):
-            # i,j -> i+1,j
-            arr = get_idArr(g,i,j,0,m,N)
-            for e in arr:
-                weights[e] = tempWeight[k]
-            k = k+1
-
-            # i,j -> i,j+1
-            arr = get_idArr(g,i,j,1,m,N)
-            for e in arr:
-                weights[e] = tempWeight[k]
-            k = k+1
-    if use_weight_label:
-        g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(ecount)]
-
-    return weights
-
-def  get_idArr(g,i,j,d,m,N):
-    # initialize array saving eids
-    arr = []
-
-    lim = math.ceil((N-1)/(m-1))+1
-    if d == 0: # horizontal
-        for p in range(lim):
-            for q in range(lim):
-                x = i+p*(m-1)
-                y = j+q*(m-1)
-                if x < N-1 and y < N:
-                    xName = str(x)+','+str(y)
-                    yName = str(x+1)+','+str(y)
-                    u = g.vs.find(name=xName).index
-                    v = g.vs.find(name=yName).index
-                    arr.append(g.get_eid(u,v))
-                else:
-                    break
-    else: # vertical
-        for p in range(lim):
-            for q in range(lim):
-                x = i+p*(m-1)
-                y = j+q*(m-1)
-                if x < N and y < N-1:
-                    xName = str(x)+','+str(y)
-                    yName = str(x)+','+str(y+1)
-                    u = g.vs.find(name=xName).index
-                    v = g.vs.find(name=yName).index
-                    arr.append(g.get_eid(u,v))
-                else:
-                    break
-        
-    return arr
