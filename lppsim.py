@@ -241,7 +241,12 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,m,wtfun=np.random.exponential,use_vertex_weights=True,use_edge_weights=False,scaled=False,samples=1,graph_shape='rectangle'):
+def return_times(
+        g,
+        wtfun=np.random.exponential,
+        use_vertex_weights=True,
+        samples=1,
+        graph_shape='rectangle'):
     """
     g: graph
     returns a list of occupied vertex indices
@@ -264,11 +269,10 @@ def return_times(g,m,wtfun=np.random.exponential,use_vertex_weights=True,use_edg
     if use_vertex_weights:
         # call custom function that puts the same weight on all outgoing edges from a vertex
         edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
-    elif use_edge_weights:
-        edgewts = wtfun(g,m,N)
     else: 
         # edge weights: one weight for each edge
         # returns negative weights for last-passage percolation
+        # typically, wtfun = np.random.exponential
         edgewts = -wtfun(size=g.ecount())
     if dbg>=1:
         print('End generating weights: ' + time.asctime())
@@ -353,7 +357,12 @@ def return_occupied_vertex_coordinates(vertex_list,N,times,time_threshold,scaled
     # if interface=True, occupied vertices will have the interface
     return occupied_vertices
 
-def plot_shape_pyplot(g,wtfun,m,N,times,use_edge_weights=False,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2},graph_shape='rectangle'):
+def plot_shape_pyplot(g,wtfun,N,times,
+        compare_with_exponential=True,
+        thresholds=None,interface=False,colors=['red','white'],
+        meansamples=10000,plot_options={'linewidth':2},
+        exp_plot_options={'linestyles':'dashed','linewidth':2},
+        graph_shape='rectangle'):
     """
     This plots the limit shape B_t/t where t is chosen to be N * mean/2
     times contains first or last passage times to vertices
@@ -361,7 +370,7 @@ def plot_shape_pyplot(g,wtfun,m,N,times,use_edge_weights=False,compare_with_expo
     returns plots using the igraph library to plot graphs.
     """
 
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
 
     global dbg
 
@@ -369,14 +378,9 @@ def plot_shape_pyplot(g,wtfun,m,N,times,use_edge_weights=False,compare_with_expo
     contour_linewidth=2
 
     try:
-        if not use_edge_weights:
-            samples = wtfun(size=meansamples)
-            mean = np.mean(samples)
-            std = np.std(samples)
-        else:
-            samples = wtfun(g,m,N=meansamples)
-            mean = np.mean(samples)
-            std = np.std(samples)
+        samples = wtfun(size=meansamples)
+        mean = np.mean(samples)
+        std = np.std(samples)
         if dbg>=1:
             print('mean = ',mean)
             print('std = ',std)
@@ -541,7 +545,9 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],vshape
 
     return plots,joint_color_vector,joint_shape_vector
 
-def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','white'],meansamples=10000):
+def plot_shape_igraph(g,layout,wtfun,N,times,
+        thresholds=None,colors=['red','white'],
+        meansamples=10000):
     """
     times contains first or last passage times to vertices
     colors contains the occupied and unoccupied vertex colors
@@ -922,7 +928,14 @@ def absnormal(*args,**kargs):
     """
     return abs(np.random.normal(*args,**kargs))    
 
-def wtfun_periodic(g,m,N,use_weight_label=False):
+def wtfun_periodic(g,m,N,use_weight_label=False,size=0):
+    """ 
+    Usage: Define a wrapper, before passing to return_times as follows
+    wtfun_wrapper = lambda **x: wtfun_periodic(g,m,N,**x)
+    m:  the size of the period
+    keyword argument size will not be used
+    """
+
     ecount = 2*(N-1)*N
     weights = np.zeros(ecount)
 

@@ -1,3 +1,5 @@
+#cython: language_level=3
+
 from itertools import chain
 
 def str_to_tuple(s):
