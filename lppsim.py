@@ -22,9 +22,11 @@ import matplotlib.pyplot as plt
 import traceback
 
 # import cython
-import pyximport; pyximport.install()
+# import pyximport; pyximport.install()
 #from compiled import * 
-from compiled import *
+# from compiled import *
+
+exec(open('compiled.pyx').read())
 
 try:
     dbg
@@ -127,6 +129,9 @@ def plot_graph(g,graphlayout=None,**kwargs):
     if graphlayout == None:
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
+
+    kwargs["bbox"] = (600, 600)
+    kwargs["margin"] = 50
         
     return ig.plot(g,layout = graphlayout,**kwargs)
 
@@ -945,15 +950,15 @@ def wtfun_generator(g,N,
     ecount = 2*(N-1)*N
     weights = np.zeros(ecount)
 
-    if periodic=True:
+    if periodic_weights:
         m = period
     else:
         m = N + 1
 
-    # assign weights to base edges
     tempSize = 2*(m-1)*m-2*(m-1)
     tempWeight = -np.random.normal(size=tempSize)
-
+    
+    # assign weights to base edges
     k = 0
     for i in range(m-1):
         for j in range(m-1):
@@ -961,12 +966,17 @@ def wtfun_generator(g,N,
             arr = get_idArr(g,i,j,0,m,N)
             for e in arr:
                 weights[e] = tempWeight[k]
-            k = k+1
+            if not use_vertex_weights:
+                k = k+1
+            # print(arr)
+            # print('horizontal',k)
 
             # i,j -> i,j+1
             arr = get_idArr(g,i,j,1,m,N)
             for e in arr:
                 weights[e] = tempWeight[k]
+            # print(arr)
+            # print('vertical',k)
             k = k+1
     if set_weight_label_in_graph:
         g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(ecount)]
