@@ -244,7 +244,6 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 def return_times(
         g,
         wtfun=np.random.exponential,
-        use_vertex_weights=True,
         samples=1,
         graph_shape='rectangle'):
     """
@@ -266,14 +265,11 @@ def return_times(
     # Make edge weights by putting the same value of the edge weight on both outgoing edges. This can be slow because of loops in edge generation see vertex_weights()
     if dbg>=1:
         print('Start generating weights: ' + time.asctime())
-    if use_vertex_weights:
-        # call custom function that puts the same weight on all outgoing edges from a vertex
-        edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
-    else: 
-        # edge weights: one weight for each edge
-        # returns negative weights for last-passage percolation
-        # typically, wtfun = np.random.exponential
-        edgewts = -wtfun(size=g.ecount())
+
+    # set edge weights. can use wtfun_generator with a wrapper for periodic or vertex weights, or something like np.random.exponential for directly using default edge weights.
+
+    edgewts = -wtfun(size=g.ecount())
+
     if dbg>=1:
         print('End generating weights: ' + time.asctime())
 
@@ -928,16 +924,31 @@ def absnormal(*args,**kargs):
     """
     return abs(np.random.normal(*args,**kargs))    
 
-def wtfun_periodic(g,m,N,use_weight_label=False,size=0):
+def wtfun_generator(g,N,
+        periodic_weights=False,
+        period=1,
+        use_vertex_weights=False,
+        set_weight_label_in_graph=False,
+        size=0):
     """ 
     Usage: Define a wrapper, before passing to return_times as follows
     wtfun_wrapper = lambda **x: wtfun_periodic(g,m,N,**x)
-    m:  the size of the period
+
+    periodic_weights : use periodic weights by repeating a box of weights of size period.
+    period:  the size of the period
+    vertex_weights: use vertex weights instead of default edge weights
     keyword argument size will not be used
+
+    Jun 15 2021: To do, use the original vertex_weights function, or just incorporate the code from there here.
     """
 
     ecount = 2*(N-1)*N
     weights = np.zeros(ecount)
+
+    if periodic=True:
+        m = period
+    else:
+        m = N + 1
 
     # assign weights to base edges
     tempSize = 2*(m-1)*m-2*(m-1)
@@ -957,7 +968,7 @@ def wtfun_periodic(g,m,N,use_weight_label=False,size=0):
             for e in arr:
                 weights[e] = tempWeight[k]
             k = k+1
-    if use_weight_label:
+    if set_weight_label_in_graph:
         g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(ecount)]
 
     return weights
