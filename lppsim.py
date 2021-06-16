@@ -975,21 +975,16 @@ def wtfun_generator(g,N,
                     weights[e] = tempWeight[k]
                 if not use_vertex_weights:
                     k = k+1
-                # print(arr)
-                # print('horizontal',k)
 
                 # i,j -> i,j+1
                 arr = get_idArr(g,i,j,1,m,N)
                 for e in arr:
                     weights[e] = tempWeight[k]
-                # print(arr)
-                # print('vertical',k)
                 k = k+1
     elif graph_shape == 'triangle':
         if periodic_weights:         
             if use_vertex_weights:
                 num_verts = (m-1)*m // 2  
-                # gen = list(-random_fc(size=num_verts))
                 tempWeight = -random_fc(size=num_verts)
                 print(tempWeight)
             else:
@@ -1004,28 +999,19 @@ def wtfun_generator(g,N,
                 for j in range(m-1-i):
                     # i,j -> i+1,j
                     arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
-                    # print('horizontal',k)
-                    # print(arr)
                     for e in arr:
                         weights[e] = tempWeight[k]
                     if not use_vertex_weights:
                         k = k+1
-                    # print(arr)
-                    # print('horizontal',k)
 
                     # i,j -> i,j+1
                     arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
-                    # print('vertical',k)
-                    # print(arr)
                     for e in arr:
                         weights[e] = tempWeight[k]
-                    # print(arr)
-                    # print('vertical',k)
                     k = k+1
 
             missed = np.where(weights==0)[0]
             if use_vertex_weights:
-                print(len(missed))
                 i = 0
                 while i < len(missed):
                     if missed[i+1] == missed[i]+1:
@@ -1034,7 +1020,6 @@ def wtfun_generator(g,N,
                     else:
                         weights[missed[i]] = -random_fc()
                         i = i+1
-                # print(1)
             else:
                 for i in range(len(missed)):
                     weights[missed[i]] = -random_fc()
