@@ -1,7 +1,8 @@
 # Oct 15 2017 Does last passage percolation on lattice.
 # Want to compute correlations of busemann functions
 
-import sys,math,readline
+from functools import wraps
+import sys,math,readline,os
 
 import time
 import shelve,datetime
@@ -23,7 +24,10 @@ import traceback
 
 # import cython
 # import pyximport; pyximport.install()
-#from compiled import * 
+# numpy_path = np.get_include()
+# os.environ['CFLAGS'] = "-I" + numpy_path
+# pyximport.install(setup_args={"include_dirs":numpy_path})
+# from compiled import * 
 # from compiled import *
 
 exec(open('compiled.pyx').read())
@@ -130,8 +134,9 @@ def plot_graph(g,graphlayout=None,**kwargs):
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
 
-    kwargs["bbox"] = (600, 600)
-    kwargs["margin"] = 50
+    width = height = len(g.vs)*15
+    kwargs["bbox"] = (width, height)
+    kwargs["margin"] = 40
         
     return ig.plot(g,layout = graphlayout,**kwargs)
 
@@ -934,66 +939,145 @@ def wtfun_generator(g,N,
         period=1,
         use_vertex_weights=False,
         set_weight_label_in_graph=False,
+        graph_shape='rectangle',
+        random_fc = np.random.normal,
         size=0):
     """ 
     Usage: Define a wrapper, before passing to return_times as follows
     wtfun_wrapper = lambda **x: wtfun_periodic(g,m,N,**x)
 
-    periodic_weights : use periodic weights by repeating a box of weights of size period.
+    periodic_weights: use periodic weights by repeating a box of weights of size period.
     period:  the size of the period
     vertex_weights: use vertex weights instead of default edge weights
     keyword argument size will not be used
 
     Jun 15 2021: To do, use the original vertex_weights function, or just incorporate the code from there here.
     """
-
-    ecount = 2*(N-1)*N
-    weights = np.zeros(ecount)
-
     if periodic_weights:
         m = period
     else:
         m = N + 1
 
-    tempSize = 2*(m-1)*m-2*(m-1)
-    tempWeight = -np.random.normal(size=tempSize)
-    
-    # assign weights to base edges
-    k = 0
-    for i in range(m-1):
-        for j in range(m-1):
-            # i,j -> i+1,j
-            arr = get_idArr(g,i,j,0,m,N)
-            for e in arr:
-                weights[e] = tempWeight[k]
-            if not use_vertex_weights:
-                k = k+1
-            # print(arr)
-            # print('horizontal',k)
+    if graph_shape == 'rectangle':
+        ecount = 2*(N-1)*N
+        weights = np.zeros(ecount)
 
-            # i,j -> i,j+1
-            arr = get_idArr(g,i,j,1,m,N)
-            for e in arr:
-                weights[e] = tempWeight[k]
-            # print(arr)
-            # print('vertical',k)
-            k = k+1
+        tempSize = 2*(m-1)*m-2*(m-1)
+        tempWeight = -random_fc(size=tempSize)
+        
+        # assign weights to base edges
+        k = 0
+        for i in range(m-1):
+            for j in range(m-1):
+                # i,j -> i+1,j
+                arr = get_idArr(g,i,j,0,m,N)
+                for e in arr:
+                    weights[e] = tempWeight[k]
+                if not use_vertex_weights:
+                    k = k+1
+                # print(arr)
+                # print('horizontal',k)
+
+                # i,j -> i,j+1
+                arr = get_idArr(g,i,j,1,m,N)
+                for e in arr:
+                    weights[e] = tempWeight[k]
+                # print(arr)
+                # print('vertical',k)
+                k = k+1
+    elif graph_shape == 'triangle':
+        if periodic_weights:         
+            if use_vertex_weights:
+                num_verts = (m-1)*m // 2  
+                # gen = list(-random_fc(size=num_verts))
+                tempWeight = -random_fc(size=num_verts)
+                print(tempWeight)
+            else:
+                num_verts = (m-1)*m
+                tempWeight = -random_fc(size=num_verts)
+                print(tempWeight)
+
+            weights = np.zeros((N-1)*N)
+
+            k = 0
+            for i in range(m-1):
+                for j in range(m-1-i):
+                    # i,j -> i+1,j
+                    arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
+                    # print('horizontal',k)
+                    # print(arr)
+                    for e in arr:
+                        weights[e] = tempWeight[k]
+                    if not use_vertex_weights:
+                        k = k+1
+                    # print(arr)
+                    # print('horizontal',k)
+
+                    # i,j -> i,j+1
+                    arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
+                    # print('vertical',k)
+                    # print(arr)
+                    for e in arr:
+                        weights[e] = tempWeight[k]
+                    # print(arr)
+                    # print('vertical',k)
+                    k = k+1
+
+            missed = np.where(weights==0)[0]
+            if use_vertex_weights:
+                print(len(missed))
+                i = 0
+                while i < len(missed):
+                    if missed[i+1] == missed[i]+1:
+                        weights[missed[i+1]] = weights[missed[i]] = -random_fc()
+                        i = i+2
+                    else:
+                        weights[missed[i]] = -random_fc()
+                        i = i+1
+                # print(1)
+            else:
+                for i in range(len(missed)):
+                    weights[missed[i]] = -random_fc()
+        else:
+            num_verts = (N-1)*N // 2
+            gen = list(-random_fc(size=num_verts))
+            weights = [ val for pair in zip(gen,gen) for val in pair ]
+            
     if set_weight_label_in_graph:
-        g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(ecount)]
+        g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(len(weights))]
 
     return weights
 
-def  get_idArr(g,i,j,d,m,N):
+def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
+    """
+    returns an array of edge ids such that all edge weights in this array will share the same weight
+    The position of the starting vertices of those edges satisfied x = i+p*(m-1) and y = j+p*(m-1)
+    @param direction: distinguish between horinzontal and vertical edges, 0 for horinzontal and typically 1 for vertical
+    @param m: period
+    """
     # initialize array saving eids
     arr = []
 
     lim = math.ceil((N-1)/(m-1))+1
-    if d == 0: # horizontal
+
+    if direction == 0: # horizontal
+        if graph_shape == 'rectangle':
+            xlim = N-1
+            ylim = N
+        elif graph_shape == 'triangle':
+            xlim = N-1-j
+            # ylim = N-1-i
+        # print(xlim,ylim)
         for p in range(lim):
             for q in range(lim):
                 x = i+p*(m-1)
                 y = j+q*(m-1)
-                if x < N-1 and y < N:
+
+                if graph_shape == 'triangle':
+                    ylim = N-1-x
+                # print(xlim,ylim)
+
+                if x < xlim and y < ylim:
                     xName = str(x)+','+str(y)
                     yName = str(x+1)+','+str(y)
                     u = g.vs.find(name=xName).index
@@ -1002,11 +1086,22 @@ def  get_idArr(g,i,j,d,m,N):
                 else:
                     break
     else: # vertical
+        if graph_shape == 'rectangle':
+            xlim = N
+            ylim = N-1
+        elif graph_shape == 'triangle':
+            # xlim = N-1-i
+            ylim = N-1-i
+
         for p in range(lim):
             for q in range(lim):
                 x = i+p*(m-1)
                 y = j+q*(m-1)
-                if x < N and y < N-1:
+
+                if graph_shape == 'triangle':
+                    xlim = N-1-y
+                
+                if x < xlim and y < ylim:
                     xName = str(x)+','+str(y)
                     yName = str(x)+','+str(y+1)
                     u = g.vs.find(name=xName).index
