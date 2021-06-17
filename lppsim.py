@@ -940,7 +940,7 @@ def wtfun_generator(g,N,
         use_vertex_weights=False,
         set_weight_label_in_graph=False,
         graph_shape='rectangle',
-        random_fc = np.random.normal,
+        random_fc = np.random.uniform,
         size=0):
     """ 
     Usage: Define a wrapper, before passing to return_times as follows
