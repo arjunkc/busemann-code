@@ -982,15 +982,14 @@ def wtfun_generator(g,N,
                     weights[e] = tempWeight[k]
                 k = k+1
     elif graph_shape == 'triangle':
-        if periodic_weights:         
+        if periodic_weights:
+            sq = 2*(m-1)*m-2*(m-1)
             if use_vertex_weights:
-                num_verts = (m-1)*m // 2  
-                tempWeight = -random_fc(size=num_verts)
-                print(tempWeight)
+                tempSize = sq // 2
+                tempWeight = -random_fc(size=tempSize)
             else:
-                num_verts = (m-1)*m
-                tempWeight = -random_fc(size=num_verts)
-                print(tempWeight)
+                tempSize = sq
+                tempWeight = -random_fc(size=tempSize)
 
             weights = np.zeros((N-1)*N)
 
@@ -1009,20 +1008,6 @@ def wtfun_generator(g,N,
                     for e in arr:
                         weights[e] = tempWeight[k]
                     k = k+1
-
-            missed = np.where(weights==0)[0]
-            if use_vertex_weights:
-                i = 0
-                while i < len(missed):
-                    if missed[i+1] == missed[i]+1:
-                        weights[missed[i+1]] = weights[missed[i]] = -random_fc()
-                        i = i+2
-                    else:
-                        weights[missed[i]] = -random_fc()
-                        i = i+1
-            else:
-                for i in range(len(missed)):
-                    weights[missed[i]] = -random_fc()
         else:
             num_verts = (N-1)*N // 2
             gen = list(-random_fc(size=num_verts))
