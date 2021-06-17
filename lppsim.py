@@ -134,7 +134,7 @@ def plot_graph(g,graphlayout=None,**kwargs):
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
 
-    width = height = len(g.vs)*15
+    width = height = len(g.vs)*20
     kwargs["bbox"] = (width, height)
     kwargs["margin"] = 40
         
@@ -964,54 +964,38 @@ def wtfun_generator(g,N,
 
         tempSize = 2*(m-1)*m-2*(m-1)
         tempWeight = -random_fc(size=tempSize)
-        
-        # assign weights to base edges
-        k = 0
-        for i in range(m-1):
-            for j in range(m-1):
-                # i,j -> i+1,j
-                arr = get_idArr(g,i,j,0,m,N)
-                for e in arr:
-                    weights[e] = tempWeight[k]
-                if not use_vertex_weights:
-                    k = k+1
-
-                # i,j -> i,j+1
-                arr = get_idArr(g,i,j,1,m,N)
-                for e in arr:
-                    weights[e] = tempWeight[k]
-                k = k+1
     elif graph_shape == 'triangle':
-        if periodic_weights:
-            sq = 2*(m-1)*m-2*(m-1)
-            if use_vertex_weights:
-                tempSize = sq // 2
-                tempWeight = -random_fc(size=tempSize)
-            else:
-                tempSize = sq
-                tempWeight = -random_fc(size=tempSize)
-
-            weights = np.zeros((N-1)*N)
-
-            k = 0
-            for i in range(m-1):
-                for j in range(m-1-i):
-                    # i,j -> i+1,j
-                    arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
-                    for e in arr:
-                        weights[e] = tempWeight[k]
-                    if not use_vertex_weights:
-                        k = k+1
-
-                    # i,j -> i,j+1
-                    arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
-                    for e in arr:
-                        weights[e] = tempWeight[k]
-                    k = k+1
+        weights = np.zeros((N-1)*N)
+        sq = 2*(m-1)*m-2*(m-1)
+        if use_vertex_weights:
+            tempSize = sq // 2
+            tempWeight = -random_fc(size=tempSize)
         else:
-            num_verts = (N-1)*N // 2
-            gen = list(-random_fc(size=num_verts))
-            weights = [ val for pair in zip(gen,gen) for val in pair ]
+            tempSize = sq
+            tempWeight = -random_fc(size=tempSize)
+
+    k = 0
+    for i in range(m-1):
+        for j in range(m-1):
+            # i,j -> i+1,j
+            if graph_shape == 'rectangle':
+                arr = get_idArr(g,i,j,0,m,N)
+            elif graph_shape == 'triangle':
+                arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
+
+            for e in arr:
+                weights[e] = tempWeight[k]
+            if not use_vertex_weights:
+                k = k+1
+
+            # i,j -> i,j+1
+            if graph_shape == 'rectangle':
+                arr = get_idArr(g,i,j,1,m,N)
+            elif graph_shape == 'triangle':
+                arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
+            for e in arr:
+                weights[e] = tempWeight[k]
+            k = k+1
             
     if set_weight_label_in_graph:
         g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(len(weights))]
