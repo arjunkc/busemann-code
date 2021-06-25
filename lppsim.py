@@ -2,6 +2,7 @@
 # Want to compute correlations of busemann functions
 
 from functools import wraps
+from re import S
 import sys,math,readline,os
 
 import time
@@ -944,7 +945,7 @@ def wtfun_generator(g,N,
         size=0):
     """ 
     Usage: Define a wrapper, before passing to return_times as follows
-    wtfun_wrapper = lambda **x: wtfun_periodic(g,m,N,**x)
+    wtfun_wrapper = lambda **x: wtfun_generator(g,N,**x)
 
     periodic_weights: use periodic weights by repeating a box of weights of size period.
     period:  the size of the period
@@ -1065,3 +1066,23 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
                     break
         
     return arr
+
+
+def gpl(g,N,times,h): 
+    pp = times_on_diagonal(g,N,times)
+    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
+    
+    hp = [np.dot(h,vert) for vert in transVerts]
+    pl = pp+hp
+    
+    return np.max(pl)
+
+def plot_pl_time_constant(g,N,
+        times,
+        hrange=100,
+        **plot_options):
+        
+    x = np.linspace(-hrange,hrange,4*hrange)
+    y = [gpl(g,N,times,[h,-h]) for h in x]
+
+    plt.plot(x,y)
