@@ -1097,7 +1097,7 @@ def eigenvalue(g,N,h,times):
 
     x = np.zeros((num_vertices,num_vertices))
     # choose arbitrary j∈num_vertices and set x(0) = e_j
-    j = np.random.randomint(0,num_vertices)
+    j = np.random.randint(0,num_vertices)
     x[j][0] = 1
     # compute x(k) for k=1,...,num_vertices-1
     for i in range(1,num_vertices):
@@ -1115,10 +1115,10 @@ def assignvalue(g,N,arr,h,times,index):
 
     if x+1 < N:
         v = g.vs.find(name=str(x+1)+','+str(y)).index
-        arr[i][v] = times[i]+h[0]
+        arr[index][v] = times[index]+h[0]
     if y+1 < N:
         v = g.vs.find(name=str(x)+','+str(y+1)).index
-        arr[i][v] = times[i]+h[1]
+        arr[index][v] = times[index]+h[1]
 
 def maxplus(arr,v):
     x = np.zeros(len(v))
