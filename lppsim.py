@@ -1086,3 +1086,43 @@ def plot_pl_time_constant(g,N,
     y = [gpl(g,N,times,[h,-h]) for h in x]
 
     plt.plot(x,y)
+
+def eigenvalue(g,N,h,times):
+    num_vertices = len(g.vs)
+
+    # assign A(w,w')
+    A = np.zeros((num_vertices,num_vertices))
+    for i in range(num_vertices):
+        assignvalue(g,N,A,h,times,i)
+
+    x = np.zeros((num_vertices,num_vertices))
+    # choose arbitrary j∈num_vertices and set x(0) = e_j
+    j = np.random.randomint(0,num_vertices)
+    x[j][0] = 1
+    # compute x(k) for k=1,...,num_vertices-1
+    for i in range(1,num_vertices):
+        x[:,i] = maxplus(A,x[:,i-1])
+
+    _min = np.zeros(num_vertices-1)
+    for i in range(num_vertices-1):
+        _min[i] = np.min([(x[-1][i]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+    return np.max(_min)
+
+def assignvalue(g,N,arr,h,times,index):
+    x,y = g.vs[index]['name'].split(',')
+    x = int(x)
+    y = int(y)
+
+    if x+1 < N:
+        v = g.vs.find(name=str(x+1)+','+str(y)).index
+        arr[i][v] = times[i]+h[0]
+    if y+1 < N:
+        v = g.vs.find(name=str(x)+','+str(y+1)).index
+        arr[i][v] = times[i]+h[1]
+
+def maxplus(arr,v):
+    x = np.zeros(len(v))
+    for i in range(len(x)):
+        x[i] = np.max([arr[i][k]+v[k] for k in range(len(v))])
+
+    return x
