@@ -1073,7 +1073,7 @@ def gpl(g,N,times,h):
     transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
     
     hp = [np.dot(h,vert) for vert in transVerts]
-    pl = pp+hp
+    pl = -1*np.array(pp)+hp
     
     return np.max(pl)
 
@@ -1087,42 +1087,58 @@ def plot_pl_time_constant(g,N,
 
     plt.plot(x,y)
 
-def eigenvalue(g,N,h,times):
+def printA(g,arr):
+    print(' ',end='\t')
+    for i in range(len(g.vs)):
+        print(g.vs[i]['name'],end='\t')
+    print()
+    for i in range(len(arr)):
+        print(g.vs[i]['name'],end='\t')
+        for j in range(len(arr)):
+            print(format(arr[i][j],'.4f'),end='\t')
+        print()
+
+def eigenvalue(g,N,h):
     num_vertices = len(g.vs)
 
     # assign A(w,w')
     A = np.zeros((num_vertices,num_vertices))
     for i in range(num_vertices):
-        assignvalue(g,N,A,h,times,i)
+        assignvalue(g,N,A,h,i)
+    printA(g,A)
 
-    x = np.zeros((num_vertices,num_vertices))
+    x = np.zeros((num_vertices,num_vertices+1))
     # choose arbitrary j∈num_vertices and set x(0) = e_j
     j = np.random.randint(0,num_vertices)
     x[j][0] = 1
     # compute x(k) for k=1,...,num_vertices-1
-    for i in range(1,num_vertices):
-        x[:,i] = maxplus(A,x[:,i-1])
+    for i in range(1,num_vertices+1):
+        x[:,i] = maxplus(A,x[:,i-1]) 
 
-    _min = np.zeros(num_vertices-1)
-    for i in range(num_vertices-1):
-        _min[i] = np.min([(x[-1][i]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+    _min = np.zeros(num_vertices+1)
+    for i in range(num_vertices+1):
+        _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
     return np.max(_min)
 
-def assignvalue(g,N,arr,h,times,index):
+def assignvalue(g,N,arr,h,index):
     x,y = g.vs[index]['name'].split(',')
     x = int(x)
     y = int(y)
 
     if x+1 < N:
         v = g.vs.find(name=str(x+1)+','+str(y)).index
-        arr[index][v] = times[index]+h[0]
+        edgeID = g.get_eid(index,v)
+        t = -float(g.es[edgeID]['label'])
+        arr[index][v] = t+h[0]
     if y+1 < N:
         v = g.vs.find(name=str(x)+','+str(y+1)).index
-        arr[index][v] = times[index]+h[1]
+        edgeID = g.get_eid(index,v)
+        t = -float(g.es[edgeID]['label'])
+        arr[index][v] = t+h[1]
 
 def maxplus(arr,v):
     x = np.zeros(len(v))
     for i in range(len(x)):
-        x[i] = np.max([arr[i][k]+v[k] for k in range(len(v))])
+        x[i] = np.max([arr[k][i]+v[k] for k in range(len(v))])
 
     return x
