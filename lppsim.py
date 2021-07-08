@@ -264,7 +264,7 @@ def return_times(
     usage: t = return_times(g)
 
     """
-    #import ipdb; ipdb.set_trace() 
+    # import ipdb; ipdb.set_trace() 
 
     # check if N value correctly set
     try:
@@ -964,16 +964,16 @@ def wtfun_generator(g,N,
         weights = np.zeros(ecount)
 
         tempSize = 2*(m-1)*m-2*(m-1)
-        tempWeight = -random_fc(size=tempSize)
+        tempWeight = random_fc(size=tempSize)
     elif graph_shape == 'triangle':
         weights = np.zeros((N-1)*N)
         sq = 2*(m-1)*m-2*(m-1)
         if use_vertex_weights:
             tempSize = sq // 2
-            tempWeight = -random_fc(size=tempSize)
+            tempWeight = random_fc(size=tempSize)
         else:
             tempSize = sq
-            tempWeight = -random_fc(size=tempSize)
+            tempWeight = random_fc(size=tempSize)
 
     k = 0
     for i in range(m-1):
@@ -1073,7 +1073,7 @@ def gpl(g,N,times,h):
     transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
     
     hp = [np.dot(h,vert) for vert in transVerts]
-    pl = -1*np.array(pp)+hp
+    pl = np.array(pp)+hp
     
     return np.max(pl)
 
@@ -1098,13 +1098,34 @@ def printA(g,arr):
             print(format(arr[i][j],'.4f'),end='\t')
         print()
 
-def eigenvalue(g,N,h):
-    num_vertices = len(g.vs)
+def eigenvalue(g,m,h):
+    num_vertices = m**2
+    print(num_vertices)
 
     # assign A(w,w')
     A = np.zeros((num_vertices,num_vertices))
-    for i in range(num_vertices):
-        assignvalue(g,N,A,h,i)
+    for i in range(m):
+        for j in range(m):
+            if i < m-1:
+                u = g.vs.find(name=str(i)+','+str(j))
+                v = g.vs.find(name=str(i+1)+','+str(j))
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][(i+1)*m+j] = t+h[0]
+            elif i == m-1:
+                pass
+            if j < m-1:
+                u = g.vs.find(name=str(i)+','+str(j))
+                v = g.vs.find(name=str(i)+','+str(j+1))
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][i*m+(j+1)] = t+h[1]
+            elif j == m-1:
+                pass
     printA(g,A)
 
     x = np.zeros((num_vertices,num_vertices+1))
@@ -1113,28 +1134,12 @@ def eigenvalue(g,N,h):
     x[j][0] = 1
     # compute x(k) for k=1,...,num_vertices-1
     for i in range(1,num_vertices+1):
-        x[:,i] = maxplus(A,x[:,i-1]) 
+        x[:,i] = maxplus(A,x[:,i-1])
 
     _min = np.zeros(num_vertices+1)
     for i in range(num_vertices+1):
         _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
     return np.max(_min)
-
-def assignvalue(g,N,arr,h,index):
-    x,y = g.vs[index]['name'].split(',')
-    x = int(x)
-    y = int(y)
-
-    if x+1 < N:
-        v = g.vs.find(name=str(x+1)+','+str(y)).index
-        edgeID = g.get_eid(index,v)
-        t = -float(g.es[edgeID]['label'])
-        arr[index][v] = t+h[0]
-    if y+1 < N:
-        v = g.vs.find(name=str(x)+','+str(y+1)).index
-        edgeID = g.get_eid(index,v)
-        t = -float(g.es[edgeID]['label'])
-        arr[index][v] = t+h[1]
 
 def maxplus(arr,v):
     x = np.zeros(len(v))
