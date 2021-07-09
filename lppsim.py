@@ -1087,38 +1087,56 @@ def plot_pl_time_constant(g,N,
 
     plt.plot(x,y)
 
-def printA(g,arr):
+def printA(g,m,arr):
     print(' ',end='\t')
-    for i in range(len(g.vs)):
-        print(g.vs[i]['name'],end='\t')
+    for i in range(len(arr)):
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
     print()
     for i in range(len(arr)):
-        print(g.vs[i]['name'],end='\t')
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
         for j in range(len(arr)):
             print(format(arr[i][j],'.4f'),end='\t')
         print()
+    # print(' ',end='\t')
+    # for i in range(len(g.vs)):
+    #     print(g.vs[i]['name'],end='\t')
+    # print()
+    # for i in range(len(arr)):
+    #     print(g.vs[i]['name'],end='\t')
+    #     for j in range(len(arr)):
+    #         print(format(arr[i][j],'.4f'),end='\t')
+    #     print()
 
 def eigenvalue(g,m,h):
     num_vertices = m**2
-    print(num_vertices)
+    # print(num_vertices)
 
     # assign A(w,w')
     A = np.zeros((num_vertices,num_vertices))
     for i in range(m):
         for j in range(m):
             if i < m-1:
-                u = g.vs.find(name=str(i)+','+str(j))
-                v = g.vs.find(name=str(i+1)+','+str(j))
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i+1)+','+str(j)).index
+                # print('u={},v={}'.format(u,v))
 
                 eid = g.get_eid(u,v)
+                # print('eid={}'.format(eid))
                 t = float(g.es[eid]['label'])
+                # print('t={}'.format(t))
                 
-                A[i*m+j][(i+1)*m+j] = t+h[0]
+                k1 = i*m+j
+                k2 = (i+1)*m+j
+                # print('1st={},2nd={}'.format(k1,k2))
+                A[k1][k2] = t+h[0]
+                # printA(g,m,A)
             elif i == m-1:
                 pass
             if j < m-1:
-                u = g.vs.find(name=str(i)+','+str(j))
-                v = g.vs.find(name=str(i)+','+str(j+1))
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i)+','+str(j+1)).index
 
                 eid = g.get_eid(u,v)
                 t = float(g.es[eid]['label'])
@@ -1126,7 +1144,7 @@ def eigenvalue(g,m,h):
                 A[i*m+j][i*m+(j+1)] = t+h[1]
             elif j == m-1:
                 pass
-    printA(g,A)
+    printA(g,m,A)
 
     x = np.zeros((num_vertices,num_vertices+1))
     # choose arbitrary j∈num_vertices and set x(0) = e_j
