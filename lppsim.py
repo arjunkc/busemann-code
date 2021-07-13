@@ -264,7 +264,7 @@ def return_times(
     usage: t = return_times(g)
 
     """
-    #import ipdb; ipdb.set_trace() 
+    # import ipdb; ipdb.set_trace() 
 
     # check if N value correctly set
     try:
@@ -964,16 +964,16 @@ def wtfun_generator(g,N,
         weights = np.zeros(ecount)
 
         tempSize = 2*(m-1)*m-2*(m-1)
-        tempWeight = -random_fc(size=tempSize)
+        tempWeight = random_fc(size=tempSize)
     elif graph_shape == 'triangle':
         weights = np.zeros((N-1)*N)
         sq = 2*(m-1)*m-2*(m-1)
         if use_vertex_weights:
             tempSize = sq // 2
-            tempWeight = -random_fc(size=tempSize)
+            tempWeight = random_fc(size=tempSize)
         else:
             tempSize = sq
-            tempWeight = -random_fc(size=tempSize)
+            tempWeight = random_fc(size=tempSize)
 
     k = 0
     for i in range(m-1):
@@ -1073,7 +1073,7 @@ def gpl(g,N,times,h):
     transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
     
     hp = [np.dot(h,vert) for vert in transVerts]
-    pl = pp+hp
+    pl = np.array(pp)+hp
     
     return np.max(pl)
 
@@ -1086,3 +1086,74 @@ def plot_pl_time_constant(g,N,
     y = [gpl(g,N,times,[h,-h]) for h in x]
 
     plt.plot(x,y)
+
+def printA(g,m,arr):
+    print(' ',end='\t')
+    for i in range(len(arr)):
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
+    print()
+    for i in range(len(arr)):
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
+        for j in range(len(arr)):
+            print(format(arr[i][j],'.4f'),end='\t')
+        print()
+    # print(' ',end='\t')
+    # for i in range(len(g.vs)):
+    #     print(g.vs[i]['name'],end='\t')
+    # print()
+    # for i in range(len(arr)):
+    #     print(g.vs[i]['name'],end='\t')
+    #     for j in range(len(arr)):
+    #         print(format(arr[i][j],'.4f'),end='\t')
+    #     print()
+
+def eigenvalue(g,m,h):
+    num_vertices = m**2
+    # print(num_vertices)
+
+    # assign A(w,w')
+    A = np.ones((num_vertices,num_vertices))*-9999
+    for i in range(m):
+        for j in range(m):
+            # horizontal
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            k1 = i*m+j
+            k2 = ((i+1)%m)*m+j
+            A[k1][k2] = t+h[0]
+
+            # vertical
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            A[i*m+j][i*m+(j+1)%m] = t+h[1]
+    # printA(g,m,A)
+
+    x = np.zeros((num_vertices,num_vertices+1))
+    # choose arbitrary j∈num_vertices and set x(0) = e_j
+    j = np.random.randint(0,num_vertices)
+    x[j][0] = 1
+    # compute x(k) for k=1,...,num_vertices-1
+    for i in range(1,num_vertices+1):
+        x[:,i] = maxplus(A,x[:,i-1])
+
+    _min = np.zeros(num_vertices+1)
+    for i in range(num_vertices+1):
+        _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+    return np.max(_min)
+
+def maxplus(arr,v):
+    x = np.zeros(len(v))
+    for i in range(len(x)):
+        x[i] = np.max([arr[k][i]+v[k] for k in range(len(v))])
+
+    return x
