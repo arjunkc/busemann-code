@@ -1114,37 +1114,29 @@ def eigenvalue(g,m,h):
     # print(num_vertices)
 
     # assign A(w,w')
-    A = np.zeros((num_vertices,num_vertices))
+    A = np.ones((num_vertices,num_vertices))*-9999
     for i in range(m):
         for j in range(m):
-            if i < m-1:
-                u = g.vs.find(name=str(i)+','+str(j)).index
-                v = g.vs.find(name=str(i+1)+','+str(j)).index
-                # print('u={},v={}'.format(u,v))
+            # horizontal
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i+1)+','+str(j)).index
 
-                eid = g.get_eid(u,v)
-                # print('eid={}'.format(eid))
-                t = float(g.es[eid]['label'])
-                # print('t={}'.format(t))
-                
-                k1 = i*m+j
-                k2 = (i+1)*m+j
-                # print('1st={},2nd={}'.format(k1,k2))
-                A[k1][k2] = t+h[0]
-                # printA(g,m,A)
-            elif i == m-1:
-                pass
-            if j < m-1:
-                u = g.vs.find(name=str(i)+','+str(j)).index
-                v = g.vs.find(name=str(i)+','+str(j+1)).index
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            k1 = i*m+j
+            k2 = ((i+1)%m)*m+j
+            A[k1][k2] = t+h[0]
 
-                eid = g.get_eid(u,v)
-                t = float(g.es[eid]['label'])
-                
-                A[i*m+j][i*m+(j+1)] = t+h[1]
-            elif j == m-1:
-                pass
-    printA(g,m,A)
+            # vertical
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            A[i*m+j][i*m+(j+1)%m] = t+h[1]
+    # printA(g,m,A)
 
     x = np.zeros((num_vertices,num_vertices+1))
     # choose arbitrary j∈num_vertices and set x(0) = e_j
