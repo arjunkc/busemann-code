@@ -1109,7 +1109,62 @@ def printA(g,m,arr):
     #         print(format(arr[i][j],'.4f'),end='\t')
     #     print()
 
-def eigenvalue(g,m,h):
+def construct_adjacency_matrix(g,m,h,beta=np.Inf):
+
+    if beta == np.Inf:
+        # assign A(w,w')
+        A = np.ones((num_vertices,num_vertices))*-9999
+        for i in range(m):
+            for j in range(m):
+                # horizontal
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+                eid = g.get_eid(u,v)
+                # contains edge weight
+                t = float(g.es[eid]['label'])
+                
+                k1 = i*m+j
+                k2 = ((i+1)%m)*m+j
+                A[k1][k2] = t+h[0]
+
+                # vertical
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][i*m+(j+1)%m] = t+h[1]
+    elif beta > 0 && beta < np.Inf:
+        A = np.zeros((num_vertices,num_vertices))
+
+        for i in range(m):
+            for j in range(m):
+                # horizontal
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                k1 = i*m+j
+                k2 = ((i+1)%m)*m+j
+                A[k1][k2] = t+h[0]
+
+                # vertical
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][i*m+(j+1)%m] = t+h[1]
+
+    # printA(g,m,A)
+
+
+def eigenvalue(g,m,h,beta=np.Inf)):
     num_vertices = m**2
     # print(num_vertices)
 
@@ -1138,18 +1193,23 @@ def eigenvalue(g,m,h):
             A[i*m+j][i*m+(j+1)%m] = t+h[1]
     # printA(g,m,A)
 
-    x = np.zeros((num_vertices,num_vertices+1))
-    # choose arbitrary j∈num_vertices and set x(0) = e_j
-    j = np.random.randint(0,num_vertices)
-    x[j][0] = 1
-    # compute x(k) for k=1,...,num_vertices-1
-    for i in range(1,num_vertices+1):
-        x[:,i] = maxplus(A,x[:,i-1])
+    if beta == np.Inf:
+        # run a max-plus eigenvalue 
+        x = np.zeros((num_vertices,num_vertices+1))
+        # choose arbitrary j∈num_vertices and set x(0) = e_j
+        j = np.random.randint(0,num_vertices)
+        x[j][0] = 1
+        # compute x(k) for k=1,...,num_vertices-1
+        for i in range(1,num_vertices+1):
+            x[:,i] = maxplus(A,x[:,i-1])
 
-    _min = np.zeros(num_vertices+1)
-    for i in range(num_vertices+1):
-        _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
-    return np.max(_min)
+        _min = np.zeros(num_vertices+1)
+        for i in range(num_vertices+1):
+            _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+        return np.max(_min)
+    elif beta > 0 && beta < np.Inf:
+        pass 
+
 
 def maxplus(arr,v):
     x = np.zeros(len(v))
