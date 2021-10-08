@@ -1158,9 +1158,9 @@ def eigenvalue(A,m):
     for i in range(1,num_vertices+1):
         x[:,i] = maxplus(A,x[:,i-1])
 
-    _min = np.zeros(num_vertices+1)
-    for i in range(num_vertices+1):
-        _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+    _min = np.zeros(num_vertices)
+    for i in range(1,num_vertices+1):
+        _min[i] = np.min([(x[i][num_vertices]-x[i][k])/(num_vertices-k) for k in range(num_vertices)])
     return np.max(_min)
 
 def maxplus(arr,v):
@@ -1244,7 +1244,7 @@ def find_bad_index(x,y):
     bad_index = []
 
     i = 1
-    while i < len(x):
+    while i < len(x)-1:
         j = 1
         while i+j < len(x):
             delta1 = (y[i+j]-y[i+j-1])/(x[i+j]-x[i+j-1])
@@ -1271,9 +1271,9 @@ def to_string(h,gpl):
             print('h={}\tgpl={:.5f}\tdelta={:.5f}'.format(h[i],gpl[i],delta[i-1]))
 
 def fine_tuning(h,gpl,A,helper,m):
-    # import ipdb; ipdb.set_trace()
-    end = h[-1]
-    count = 0
+    import ipdb; ipdb.set_trace()
+    # end = h[-1]
+    # count = 0
 
     bad_index = find_bad_index(h,gpl)
     while len(bad_index) > 0:
@@ -1284,8 +1284,8 @@ def fine_tuning(h,gpl,A,helper,m):
         curr = h[i]
 
         new_h = [curr-(h[i]-h[i-1])/2]
-        if new_h[0] > end:
-            break
+        # if new_h[0] > end:
+        #     break
 
         new_eig = [eigenvalue(extend_matrix_A(A,helper,[new_h[0],-new_h[0]]),m)]
         to_string(new_h,new_eig)
