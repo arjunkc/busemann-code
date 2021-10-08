@@ -1239,13 +1239,20 @@ def get_num_facets(x,arr,epsilon=1e-4,use_DP=False):
                         
         return num
 
-def find_bad_index(arr):
+def find_bad_index(x,y):
+    # import ipdb; ipdb.set_trace()
     bad_index = []
-    i = 0
-    while i < len(arr):
+
+    i = 1
+    while i < len(x):
         j = 1
-        while i+j < len(arr) and ae(arr[i+j],arr[i],1e-4):
-            j += 1
+        while i+j < len(x):
+            delta1 = (y[i+j]-y[i+j-1])/(x[i+j]-x[i+j-1])
+            delta2 = (y[i]-y[i-1])/(x[i]-x[i-1])
+            if ae(delta1,delta2,1e-4):
+                j += 1
+            else:
+                break
         if j == 1:
             bad_index.append(i)
         i += j
@@ -1253,74 +1260,41 @@ def find_bad_index(arr):
     return bad_index
 
 def to_string(h,gpl):
-    diff = [y-x for (x,y) in zip(gpl[:-1],gpl[1:])]
+    delta = []
+    for i in range(1,len(h)):
+        delta.append((gpl[i]-gpl[i-1])/(h[i]-h[i-1]))
+        
     for i in range(len(h)):
         if i == 0:
             print('h={}\tgpl={:.5f}'.format(h[i],gpl[i]))
         else:
-            print('h={}\tgpl={:.5f}\tdiff={:.5f}'.format(h[i],gpl[i],diff[i-1]))
+            print('h={}\tgpl={:.5f}\tdelta={:.5f}'.format(h[i],gpl[i],delta[i-1]))
 
-def single_site_tuning(h,gpl,i,A,helper,m):
-    curr = h[i+1]
-    new_h = [curr-abs(h[1]-h[0])/2,curr,curr+abs(h[1]-h[0])/2]
-    new_eig = [eigenvalue(extend_matrix_A(A,helper,[x,-x]),m) for x in new_h]
-    to_string(new_h,new_eig)
-    new_diff = [y-x for (x,y) in zip(new_eig[:-1],new_eig[1:])]
+def fine_tuning(h,gpl,A,helper,m):
+    # import ipdb; ipdb.set_trace()
+    end = h[-1]
+    count = 0
 
-    new_bad_index = find_bad_index(new_diff)
-    if len(new_bad_index) == 0:
-        to_string(new_h,new_eig)
-        return h,gpl
-    else:
-        print('enter c for further tuning, enter q for quitting the process')
-        if input() == 'c':
-            _h,_eig = fine_tuning(new_h,new_eig,new_bad_index,A,helper,m)
-            to_string(_h,_eig)
-            for i in range(len(_h)):
-                if not _h[i] in new_h:
-                    new_h.append(_h[i])
-                    new_eig.append(_eig[i])
-        elif input() == 'q':
-            for i in range(len(new_h)):
-                if not new_h[i] in h:
-                    h.append(new_h[i])
-                    gpl.append(new_eig[i])
-            return h,gpl
-
-def recursive_fine_tuning(h,gpl,bad_index,A,helper,m):
-    for i in range(len(bad_index)):
-        new_h, new_gpl = single_site_tuning(h,gpl,bad_index[i],A,helper,m)
-    return new_h,new_gpl
-
-def fine_tuning(h,gpl,bad_index,A,helper,m):
-    for i in range(len(bad_index)):
-        curr = h[bad_index[i]+1]
+    bad_index = find_bad_index(h,gpl)
+    while len(bad_index) > 0:
+        # print(count)
+        i = bad_index[0]
         
-        new_h = [curr-abs(h[1]-h[0])/2,curr,curr+abs(h[1]-h[0])/2]
-        new_eig = [eigenvalue(extend_matrix_A(A,helper,[x,-x]),m) for x in new_h]
+        #print(i)
+        curr = h[i]
+
+        new_h = [curr-(h[i]-h[i-1])/2]
+        if new_h[0] > end:
+            break
+
+        new_eig = [eigenvalue(extend_matrix_A(A,helper,[new_h[0],-new_h[0]]),m)]
         to_string(new_h,new_eig)
-        new_diff = [y-x for (x,y) in zip(new_eig[:-1],new_eig[1:])]
+        h = h[0:i]+new_h+h[i:]
+        gpl = gpl[0:i]+new_eig+gpl[i:]
 
-        new_bad_index = find_bad_index(new_diff)
-        if len(new_bad_index) == 0:
-            to_string(new_h,new_eig)
-            for i in range(len(new_h)):
-                if not new_h[i] in h:
-                    h.append(new_h[i])
-                    gpl.append(new_eig[i])
+        to_string(h,gpl)
 
-            return h,gpl
-        else:
-            print('enter c for further tuning, enter q for quitting the process')
-            if input() == 'c':
-                _h,_eig = fine_tuning(new_h,new_eig,new_bad_index,A,helper,m)
-                to_string(_h,_eig)
-                for i in range(len(_h)):
-                    if not _h[i] in new_h:
-                        new_h.append(_h[i])
-                        new_eig.append(_eig[i])
-            elif input() == 'q':
-                for i in range(len(new_h)):
-                    if not new_h[i] in h:
-                        h.append(new_h[i])
-                        gpl.append(new_eig[i])
+        bad_index = find_bad_index(h,gpl)
+        print(bad_index)
+
+    return h,gpl
