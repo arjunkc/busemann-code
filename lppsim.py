@@ -1147,26 +1147,44 @@ def extend_matrix_A(A,helper,h):
 
     return tmp
 
+def add(u,v):
+    if u == np.NINF and v != np.NINF:
+        return np.NINF
+    elif u == np.NINF and v == np.NINF:
+        return np.NINF
+    else:
+        return u+v
+
+def minus(u,v):
+    if u == np.NINF and v != np.NINF:
+        return np.NINF
+    elif u == np.NINF and v == np.NINF:
+        return 0
+    else:
+        return u-v
+
 def eigenvalue(A,m):
+    # import ipdb; ipdb.set_trace()
     num_vertices = m**2
     
-    x = np.zeros((num_vertices,num_vertices+1))
-    # choose arbitrary j∈num_vertices and set x(0) = e_j
+    x = np.ones((num_vertices,num_vertices+1))*np.NINF
+    # # choose arbitrary j∈num_vertices and set x(0) = e_j
     j = np.random.randint(0,num_vertices)
-    x[j][0] = 1
+    x[j][0] = 0
     # compute x(k) for k=1,...,num_vertices-1
     for i in range(1,num_vertices+1):
         x[:,i] = maxplus(A,x[:,i-1])
+    # print(x)
 
     _min = np.zeros(num_vertices)
-    for i in range(1,num_vertices+1):
-        _min[i] = np.min([(x[i][num_vertices]-x[i][k])/(num_vertices-k) for k in range(num_vertices)])
+    for i in range(num_vertices):
+        _min[i] = np.min([minus(x[i][num_vertices],x[i][k])/(num_vertices-k) for k in range(num_vertices)])
     return np.max(_min)
 
 def maxplus(arr,v):
     x = np.zeros(len(v))
     for i in range(len(x)):
-        x[i] = np.max([arr[k][i]+v[k] for k in range(len(v))])
+        x[i] = np.max([add(arr[i][k],v[k]) for k in range(len(v))])
 
     return x
 
@@ -1249,7 +1267,7 @@ def find_bad_index(x,y):
         while i+j < len(x):
             delta1 = (y[i+j]-y[i+j-1])/(x[i+j]-x[i+j-1])
             delta2 = (y[i]-y[i-1])/(x[i]-x[i-1])
-            if ae(delta1,delta2,1e-4):
+            if ae(delta1,delta2,1e-3):
                 j += 1
             else:
                 break
@@ -1260,9 +1278,7 @@ def find_bad_index(x,y):
     return bad_index
 
 def to_string(h,gpl):
-    delta = []
-    for i in range(1,len(h)):
-        delta.append((gpl[i]-gpl[i-1])/(h[i]-h[i-1]))
+    delta = dgpl(h,gpl)
         
     for i in range(len(h)):
         if i == 0:
@@ -1272,29 +1288,43 @@ def to_string(h,gpl):
 
 def fine_tuning(h,gpl,A,helper,m):
     import ipdb; ipdb.set_trace()
-    # end = h[-1]
-    # count = 0
 
     bad_index = find_bad_index(h,gpl)
     while len(bad_index) > 0:
-        # print(count)
         i = bad_index[0]
-        
-        #print(i)
+ 
         curr = h[i]
-
         new_h = [curr-(h[i]-h[i-1])/2]
-        # if new_h[0] > end:
-        #     break
-
         new_eig = [eigenvalue(extend_matrix_A(A,helper,[new_h[0],-new_h[0]]),m)]
         to_string(new_h,new_eig)
+
         h = h[0:i]+new_h+h[i:]
         gpl = gpl[0:i]+new_eig+gpl[i:]
-
         to_string(h,gpl)
 
         bad_index = find_bad_index(h,gpl)
         print(bad_index)
 
     return h,gpl
+
+def dgpl(h,gpl):
+    delta = []
+    for i in range(1,len(h)):
+        delta.append((gpl[i]-gpl[i-1])/(h[i]-h[i-1]))
+
+    return delta
+
+def plot_comparison_eig_gpl(N,m):
+    g, layout = graphgen(N)
+    wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
+    t = return_times(g,wtfun=wtfun_wrapper) 
+
+    x = [-1+0.2*i for i in range(11)]
+    A, helper = form_matrix_A(g,m)
+    y = [eigenvalue(extend_matrix_A(A,helper,[h,-h]),m) for h in x] #eig
+    y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
+
+    plt.plot(x,y,label='eig')
+    plt.plot(x,y2,label='gpl')
+    plt.legend()
+    plt.show()
