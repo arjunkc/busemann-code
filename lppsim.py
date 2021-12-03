@@ -1067,7 +1067,6 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
         
     return arr
 
-
 def gpl(times,N,h): 
     transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
     
@@ -1099,7 +1098,15 @@ def printA(g,m,arr):
             print(format(arr[i][j],'.4f'),end='\t')
         print()
 
-def form_matrix_A(g,m):
+def form_periodic_adj_matrix(g,m):
+    """
+    Requires a rectangular graph g, with at least m vertices.
+    Requires g to have weights assigned to edge labels
+
+    Forms a periodic adjacency matrix A, by looking at the first m x m box in g,
+    and then proceeds to ``periodize'' it.
+    """
+
     num_vertices = m**2
 
     helper = np.zeros((num_vertices,num_vertices))
@@ -1132,7 +1139,13 @@ def form_matrix_A(g,m):
 
     return np.array(A),np.array(helper)
 
-def extend_matrix_A(A,helper,h):
+def modify_adj_matrix(A,helper,h):
+    """
+    modify_adj_matrix takes as input a (periodic) adjacency matrix of edge weights.
+    
+    It modifies the adjacency matrix by adding h to the horizontal weights and -h to the vertical weights.
+    """
+
     tmp = A.copy()
 
     hor = np.where(helper==1)
@@ -1189,10 +1202,10 @@ def maxplus(arr,v):
     return x
 
 def plot_gpl_from_range(g,m,hrange):
-    A,helper = form_matrix_A(g,m)
+    A,helper = form_periodic_adj_matrix(g,m)
     x = np.linspace(start=-hrange,stop=hrange,num=1000)
 
-    plt.plot(x,[eigenvalue(g,extend_matrix_A(A,helper,[h,-h]),m,[h,-h]) for h in x])
+    plt.plot(x,[eigenvalue(g,modify_adj_matrix(A,helper,[h,-h]),m,[h,-h]) for h in x])
     plt.savefig('m({})_hrange({}).png'.format(m,hrange))
 
 def perpendicularDistance(x0,x1,u0,u1,v0,v1):
@@ -1295,7 +1308,7 @@ def fine_tuning(h,gpl,A,helper,m):
  
         curr = h[i]
         new_h = [curr-(h[i]-h[i-1])/2]
-        new_eig = [eigenvalue(extend_matrix_A(A,helper,[new_h[0],-new_h[0]]),m)]
+        new_eig = [eigenvalue(modify_adj_matrix(A,helper,[new_h[0],-new_h[0]]),m)]
         to_string(new_h,new_eig)
 
         h = h[0:i]+new_h+h[i:]
@@ -1320,8 +1333,8 @@ def plot_comparison_eig_gpl(N,m):
     t = return_times(g,wtfun=wtfun_wrapper) 
 
     x = [-1+0.2*i for i in range(11)]
-    A, helper = form_matrix_A(g,m)
-    y = [eigenvalue(extend_matrix_A(A,helper,[h,-h]),m) for h in x] #eig
+    A, helper = form_periodic_adj_matrix(g,m)
+    y = [eigenvalue(modify_adj_matrix(A,helper,[h,-h]),m) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
 
     plt.plot(x,y,label='eig')
