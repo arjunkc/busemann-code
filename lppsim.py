@@ -1,7 +1,9 @@
 # Oct 15 2017 Does last passage percolation on lattice.
 # Want to compute correlations of busemann functions
 
-import sys,math,readline
+from functools import wraps
+from re import S
+import sys,math,readline,os
 
 import time
 import shelve,datetime
@@ -22,9 +24,14 @@ import matplotlib.pyplot as plt
 import traceback
 
 # import cython
-import pyximport; pyximport.install()
-#from compiled import * 
-from compiled import *
+# import pyximport; pyximport.install()
+# numpy_path = np.get_include()
+# os.environ['CFLAGS'] = "-I" + numpy_path
+# pyximport.install(setup_args={"include_dirs":numpy_path})
+# from compiled import * 
+# from compiled import *
+
+exec(open('compiled.pyx').read())
 
 try:
     dbg
@@ -127,6 +134,10 @@ def plot_graph(g,graphlayout=None,**kwargs):
     if graphlayout == None:
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
+
+    width = height = len(g.vs)*20
+    kwargs["bbox"] = (width, height)
+    kwargs["margin"] = 40
         
     return ig.plot(g,layout = graphlayout,**kwargs)
 
@@ -241,7 +252,11 @@ def run_find_busemanns(runs=1000, save=True, number_of_vertices=100, wtfun=np.ra
 
     print("Runtime in seconds: ", time.time() - stime)
 
-def return_times(g,wtfun=np.random.exponential,use_vertex_weights=True,scaled=False,samples=1,graph_shape='rectangle'):
+def return_times(
+        g,
+        wtfun=np.random.exponential,
+        samples=1,
+        graph_shape='rectangle'):
     """
     g: graph
     returns a list of occupied vertex indices
@@ -249,7 +264,7 @@ def return_times(g,wtfun=np.random.exponential,use_vertex_weights=True,scaled=Fa
     usage: t = return_times(g)
 
     """
-    #import ipdb; ipdb.set_trace() 
+    # import ipdb; ipdb.set_trace() 
 
     # check if N value correctly set
     try:
@@ -261,13 +276,11 @@ def return_times(g,wtfun=np.random.exponential,use_vertex_weights=True,scaled=Fa
     # Make edge weights by putting the same value of the edge weight on both outgoing edges. This can be slow because of loops in edge generation see vertex_weights()
     if dbg>=1:
         print('Start generating weights: ' + time.asctime())
-    if use_vertex_weights:
-        # call custom function that puts the same weight on all outgoing edges from a vertex
-        edgewts = vertex_weights(wtfun,N,graph_shape=graph_shape)
-    else: 
-        # edge weights: one weight for each edge
-        # returns negative weights for last-passage percolation
-        edgewts = -wtfun(size=g.ecount())
+
+    # set edge weights. can use wtfun_generator with a wrapper for periodic or vertex weights, or something like np.random.exponential for directly using default edge weights.
+
+    edgewts = -wtfun(size=g.ecount())
+
     if dbg>=1:
         print('End generating weights: ' + time.asctime())
 
@@ -351,7 +364,12 @@ def return_occupied_vertex_coordinates(vertex_list,N,times,time_threshold,scaled
     # if interface=True, occupied vertices will have the interface
     return occupied_vertices
 
-def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=None,interface=False,colors=['red','white'],meansamples=10000,plot_options={'linewidth':2},exp_plot_options={'linestyles':'dashed','linewidth':2},graph_shape='rectangle'):
+def plot_shape_pyplot(g,wtfun,N,times,
+        compare_with_exponential=True,
+        thresholds=None,interface=False,colors=['red','white'],
+        meansamples=10000,plot_options={'linewidth':2},
+        exp_plot_options={'linestyles':'dashed','linewidth':2},
+        graph_shape='rectangle'):
     """
     This plots the limit shape B_t/t where t is chosen to be N * mean/2
     times contains first or last passage times to vertices
@@ -359,7 +377,7 @@ def plot_shape_pyplot(g,wtfun,N,times,compare_with_exponential=True,thresholds=N
     returns plots using the igraph library to plot graphs.
     """
 
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
 
     global dbg
 
@@ -534,7 +552,9 @@ def plot_geodesics(g,wtfun,layout,N,vcolors=['red','blue','green','gray'],vshape
 
     return plots,joint_color_vector,joint_shape_vector
 
-def plot_shape_igraph(g,layout,wtfun,N,times,thresholds=None,colors=['red','white'],meansamples=10000):
+def plot_shape_igraph(g,layout,wtfun,N,times,
+        thresholds=None,colors=['red','white'],
+        meansamples=10000):
     """
     times contains first or last passage times to vertices
     colors contains the occupied and unoccupied vertex colors
@@ -914,3 +934,286 @@ def absnormal(*args,**kargs):
     absolute value of a normal distribution
     """
     return abs(np.random.normal(*args,**kargs))    
+
+def wtfun_generator(g,N,
+        periodic_weights=False,
+        period=1,
+        use_vertex_weights=False,
+        set_weight_label_in_graph=False,
+        graph_shape='rectangle',
+        random_fc = np.random.uniform,
+        size=0):
+    """ 
+    Usage: Define a wrapper, before passing to return_times as follows
+    wtfun_wrapper = lambda **x: wtfun_generator(g,N,**x)
+
+    periodic_weights: use periodic weights by repeating a box of weights of size period.
+    period:  the size of the period
+    vertex_weights: use vertex weights instead of default edge weights
+    keyword argument size will not be used
+
+    Jun 15 2021: To do, use the original vertex_weights function, or just incorporate the code from there here.
+    """
+    if periodic_weights:
+        m = period
+    else:
+        m = N + 1
+
+    if graph_shape == 'rectangle':
+        ecount = 2*(N-1)*N
+        weights = np.zeros(ecount)
+
+        tempSize = 2*(m-1)*m-2*(m-1)
+        tempWeight = random_fc(size=tempSize)
+    elif graph_shape == 'triangle':
+        weights = np.zeros((N-1)*N)
+        sq = 2*(m-1)*m-2*(m-1)
+        if use_vertex_weights:
+            tempSize = sq // 2
+            tempWeight = random_fc(size=tempSize)
+        else:
+            tempSize = sq
+            tempWeight = random_fc(size=tempSize)
+
+    k = 0
+    for i in range(m-1):
+        for j in range(m-1):
+            # i,j -> i+1,j
+            if graph_shape == 'rectangle':
+                arr = get_idArr(g,i,j,0,m,N)
+            elif graph_shape == 'triangle':
+                arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
+
+            for e in arr:
+                weights[e] = tempWeight[k]
+            if not use_vertex_weights:
+                k = k+1
+
+            # i,j -> i,j+1
+            if graph_shape == 'rectangle':
+                arr = get_idArr(g,i,j,1,m,N)
+            elif graph_shape == 'triangle':
+                arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
+            for e in arr:
+                weights[e] = tempWeight[k]
+            k = k+1
+            
+    if set_weight_label_in_graph:
+        g.es['label'] = ["{:.3f}".format(weights[i]) for i in range(len(weights))]
+
+    return weights
+
+def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
+    """
+    returns an array of edge ids such that all edge weights in this array will share the same weight
+    The position of the starting vertices of those edges satisfied x = i+p*(m-1) and y = j+p*(m-1)
+    @param direction: distinguish between horinzontal and vertical edges, 0 for horinzontal and typically 1 for vertical
+    @param m: period
+    """
+    # initialize array saving eids
+    arr = []
+
+    lim = math.ceil((N-1)/(m-1))+1
+
+    if direction == 0: # horizontal
+        if graph_shape == 'rectangle':
+            xlim = N-1
+            ylim = N
+        elif graph_shape == 'triangle':
+            xlim = N-1-j
+            # ylim = N-1-i
+        # print(xlim,ylim)
+        for p in range(lim):
+            for q in range(lim):
+                x = i+p*(m-1)
+                y = j+q*(m-1)
+
+                if graph_shape == 'triangle':
+                    ylim = N-1-x
+                # print(xlim,ylim)
+
+                if x < xlim and y < ylim:
+                    xName = str(x)+','+str(y)
+                    yName = str(x+1)+','+str(y)
+                    u = g.vs.find(name=xName).index
+                    v = g.vs.find(name=yName).index
+                    arr.append(g.get_eid(u,v))
+                else:
+                    break
+    else: # vertical
+        if graph_shape == 'rectangle':
+            xlim = N
+            ylim = N-1
+        elif graph_shape == 'triangle':
+            # xlim = N-1-i
+            ylim = N-1-i
+
+        for p in range(lim):
+            for q in range(lim):
+                x = i+p*(m-1)
+                y = j+q*(m-1)
+
+                if graph_shape == 'triangle':
+                    xlim = N-1-y
+                
+                if x < xlim and y < ylim:
+                    xName = str(x)+','+str(y)
+                    yName = str(x)+','+str(y+1)
+                    u = g.vs.find(name=xName).index
+                    v = g.vs.find(name=yName).index
+                    arr.append(g.get_eid(u,v))
+                else:
+                    break
+        
+    return arr
+
+
+def gpl(g,N,times,h): 
+    pp = times_on_diagonal(g,N,times)
+    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
+    
+    hp = [np.dot(h,vert) for vert in transVerts]
+    pl = np.array(pp)+hp
+    
+    return np.max(pl)
+
+def plot_pl_time_constant(g,N,
+        times,
+        hrange=100,
+        **plot_options):
+        
+    x = np.linspace(-hrange,hrange,4*hrange)
+    y = [gpl(g,N,times,[h,-h]) for h in x]
+
+    plt.plot(x,y)
+
+def printA(g,m,arr):
+    print(' ',end='\t')
+    for i in range(len(arr)):
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
+    print()
+    for i in range(len(arr)):
+        name = str(int(i/m))+','+str(i%m)
+        print(name,end='\t')
+        for j in range(len(arr)):
+            print(format(arr[i][j],'.4f'),end='\t')
+        print()
+    # print(' ',end='\t')
+    # for i in range(len(g.vs)):
+    #     print(g.vs[i]['name'],end='\t')
+    # print()
+    # for i in range(len(arr)):
+    #     print(g.vs[i]['name'],end='\t')
+    #     for j in range(len(arr)):
+    #         print(format(arr[i][j],'.4f'),end='\t')
+    #     print()
+
+def construct_adjacency_matrix(g,m,h,beta=np.Inf):
+
+    if beta == np.Inf:
+        # assign A(w,w')
+        A = np.ones((num_vertices,num_vertices))*-9999
+        for i in range(m):
+            for j in range(m):
+                # horizontal
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+                eid = g.get_eid(u,v)
+                # contains edge weight
+                t = float(g.es[eid]['label'])
+                
+                k1 = i*m+j
+                k2 = ((i+1)%m)*m+j
+                A[k1][k2] = t+h[0]
+
+                # vertical
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][i*m+(j+1)%m] = t+h[1]
+    elif beta > 0 && beta < np.Inf:
+        A = np.zeros((num_vertices,num_vertices))
+
+        for i in range(m):
+            for j in range(m):
+                # horizontal
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                k1 = i*m+j
+                k2 = ((i+1)%m)*m+j
+                A[k1][k2] = t+h[0]
+
+                # vertical
+                u = g.vs.find(name=str(i)+','+str(j)).index
+                v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+                eid = g.get_eid(u,v)
+                t = float(g.es[eid]['label'])
+                
+                A[i*m+j][i*m+(j+1)%m] = t+h[1]
+
+    # printA(g,m,A)
+
+
+def eigenvalue(g,m,h,beta=np.Inf)):
+    num_vertices = m**2
+    # print(num_vertices)
+
+    # assign A(w,w')
+    A = np.ones((num_vertices,num_vertices))*-9999
+    for i in range(m):
+        for j in range(m):
+            # horizontal
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i+1)+','+str(j)).index
+
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            k1 = i*m+j
+            k2 = ((i+1)%m)*m+j
+            A[k1][k2] = t+h[0]
+
+            # vertical
+            u = g.vs.find(name=str(i)+','+str(j)).index
+            v = g.vs.find(name=str(i)+','+str(j+1)).index
+
+            eid = g.get_eid(u,v)
+            t = float(g.es[eid]['label'])
+            
+            A[i*m+j][i*m+(j+1)%m] = t+h[1]
+    # printA(g,m,A)
+
+    if beta == np.Inf:
+        # run a max-plus eigenvalue 
+        x = np.zeros((num_vertices,num_vertices+1))
+        # choose arbitrary j∈num_vertices and set x(0) = e_j
+        j = np.random.randint(0,num_vertices)
+        x[j][0] = 1
+        # compute x(k) for k=1,...,num_vertices-1
+        for i in range(1,num_vertices+1):
+            x[:,i] = maxplus(A,x[:,i-1])
+
+        _min = np.zeros(num_vertices+1)
+        for i in range(num_vertices+1):
+            _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
+        return np.max(_min)
+    elif beta > 0 && beta < np.Inf:
+        pass 
+
+
+def maxplus(arr,v):
+    x = np.zeros(len(v))
+    for i in range(len(x)):
+        x[i] = np.max([arr[k][i]+v[k] for k in range(len(v))])
+
+    return x
