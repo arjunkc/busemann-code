@@ -5,7 +5,7 @@ start = time.time()
 dry_run=False
 lppsim.dbg=1
 print('Starting at ',time.asctime())
-N = 8000
+N = 10
 shape='triangle'
 
 try:
@@ -21,7 +21,7 @@ except:
 savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data/'
 
 times = []
-pvals = [0.3,0.5,0.7]
+pvals = [0.8]
 #pvals = [0.3,0.5]
 wtfuns = []
 

@@ -20,6 +20,9 @@ from scipy.stats import gamma
 
 import matplotlib.pyplot as plt
 
+# testing
+import unittest
+
 # traceback
 import traceback
 
@@ -58,10 +61,10 @@ def lpp_num_of_vertices(g,graph_shape='rectangle'):
     # god help you if do not get an integer
 
     if graph_shape == 'rectangle':
-        return math.isqrt(g.vcount())
+        return math.sqrt(g.vcount())
     elif graph_shape == 'triangle':
         # solve N(N+1)/2 = v
-        return (math.isqrt(8*g.vcount() + 1)-1) // 2
+        return (math.sqrt(8*g.vcount() + 1)-1) // 2
 
 def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,graph_shape='rectangle'):
     """
@@ -871,28 +874,26 @@ def plot_correlation(bus1,bus2,plotpoints=20,plottype='covariance',savefig=False
 def import_from_file(filename):
     """
     import saved busemann functions from file
+
+    This has to be done better. This has to read the keys from the shelf and automatically restore it
     """
     global bus1,bus2,N,mywtfun,g,svs,default_svs,mysvs
 
     import shelve
     with shelve.open(filename,'r') as shelf:
-        bus1,bus2 = shelf['busemanns']
+        keys = shelf.keys()
+        print("Available keys in shelf are:\n",keys)
+        
+        if 'busemanns' in keys:
+            bus1,bus2 = shelf['busemanns']
+            print('Imported busemanns bus1,bus2')
         # number of grid pts
-        try:
+        if 'N' in keys:
             N = shelf['N']
-        except:
-            print("no N = size of grid defined")
-            shelf.close()
+            print('Imported N')
 
         # weight function defined. I could have saved the function, or I could have saved the name.
-        try:
-            shelf['wtfun']
-        except:
-            print("Error importing wtfun. manually set mywtfun.")
-            print("might also need to import numpy if wtfun is from numpy.")
-            import traceback
-            traceback.print_exc(file=sys.stdout)
-        else:
+        if 'wtfun' in keys:
             # there are two types. either callable or just the function name. 
             # this checks for both
             if callable(shelf['wtfun']):
@@ -900,34 +901,26 @@ def import_from_file(filename):
             else:
                 mywtfun = eval(shelf['wtfun'])
             print("Found wtfun", mywtfun.__name__)
+            print("Set as mywtfun")
 
-        try:
+        # sometimes there are an array of wtfuns
+        if 'wtfuns' in keys:
+            wtfuns = shelf['wtfuns']
+            print('Imported wtfuns')
+
+        if 'mysvs' in keys:
             mysvs = shelf['svs']
-        except:
-            mysvs = default_svs
-            print("source vertices not set. svs set to default: ", mysvs)
-        else:
-            print("source vertices found. svs set to: ", mysvs)
 
-        try:
-            N = shelf['N']
-        except:
-            print("no N = size of grid defined")
-            shelf.close()
-        else:
-            print("Found N = ", N)
         # graph
-        try:
-            shelf['g']
-        except:
-            print('No graph saved to file')
-        else:
-            # this is a little slow
-            try:
-                g = shelf['g']
-                print('Found graph corresponding to N = ', np.sqrt(g.ecount()/2) )
-            except:
-                print('error getting graph edge count')
+        if 'g' in keys:
+            g = shelf['g']
+            print('Imported graph as g')
+            print('Found graph corresponding to N = ', np.sqrt(g.ecount()/2) )
+
+        # times
+        if 'times' in keys:
+            times = shelf['times']
+            print('Imported times as times')
 
 def absnormal(*args,**kargs):
     """
@@ -1007,7 +1000,7 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     """
     returns an array of edge ids such that all edge weights in this array will share the same weight
     The position of the starting vertices of those edges satisfied x = i+p*(m-1) and y = j+p*(m-1)
-    @param direction: distinguish between horinzontal and vertical edges, 0 for horinzontal and typically 1 for vertical
+    @param direction: distinguish between horizontal and vertical edges, 0 for horinzontal and typically 1 for vertical
     @param m: period
     """
     # initialize array saving eids
@@ -1067,41 +1060,81 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
         
     return arr
 
-def gpl(times,N,h): 
-    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
+def gpl(gpp,h): 
+    """
+    returns gpl given times on the diagonal {(x,y) : x + y = N}
+    gpp     :   array containing gpp values diagonal
+    N       :   grid size
+    h       :   2-tuple containing the "tilt" vector for gpl
+    """
+    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)] # scaled vertices on diagonal
     
+    # uses the formula gpl = sup( gpp(xi) + h . xi) see equation 4.3 in Georgiou et al
     hp = [np.dot(h,vert) for vert in transVerts]
     pl = np.array(times)+hp
     
     return np.max(pl)
 
-def plot_pl_time_constant(g,N,
-        times,
-        hrange=100,
+def plot_pl_time_constant(
+        gpp,
+        hrange=10,
+        plotpoints=100,
         **plot_options):
+    """
+    as the name of the function says, it plots the point to line time constant.
+    This is a trivial function, but useful.
+    """
         
-    x = np.linspace(-hrange,hrange,4*hrange)
-    y = [gpl(g,N,times,[h,-h]) for h in x]
+    x = np.linspace(-hrange,hrange,plotpoints)
+    y = [gpl(times,N,[h,-h]) for h in x]
 
     plt.plot(x,y)
 
-def printA(g,m,arr):
+def printA(
+        g,
+        m,
+        arr):
+    """
+    Designed to print the adjacency matrix of the periodically weighted lattice. We call it A.
+    The matrix should have size m^2 x m^2. Each element of the matrix corresponds to a vertex.
+    """
     print(' ',end='\t')
+    # arr is m^2 x m^2 matrix
+    # len(arr) = m^2 of course. Why not just use that?
     for i in range(len(arr)):
+        # prints integral part of i/m and the remainder
+        # this forms the top row of the array. 
+        # it represents coordinates in the lattice graph
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
     print()
     for i in range(len(arr)):
+        # the name contains the vertex it is mapped to
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
         for j in range(len(arr)):
             print(format(arr[i][j],'.4f'),end='\t')
         print()
 
+def vertex_to_adjacency_matrix_element(i,j,m):
+    """
+    The matrix arranges the vertices in the following order: row1,row2,...
+    It keeps track of periodicity in the matrix
+    i:  horizontal coordinate
+    j:  vertical coordinate
+    """
+    return (i%m)*m+j%m
+
+def adjacency_matrix_element_to_vertex(x,m):
+    # The matrix arranges the vertices in the following order: row1,row2,...
+    # the x coordinate of the vertex is given by the integer part of x/m
+    # the y coordinate of the vertex is given by the remainder of x/m
+    return (int(x/m),i%m)
+
 def form_periodic_adj_matrix(g,m):
     """
     Requires a rectangular graph g, with at least m vertices.
-    Requires g to have weights assigned to edge labels
+    Requires g to have weights assigned to edge labels.
 
     Forms a periodic adjacency matrix A, by looking at the first m x m box in g,
     and then proceeds to ``periodize'' it.
@@ -1109,31 +1142,42 @@ def form_periodic_adj_matrix(g,m):
 
     num_vertices = m**2
 
+    # form a helper matrix with 0s in it.
+    # helper keeps track of which entries of the (sparse) adjacency matrix have an element in it
     helper = np.zeros((num_vertices,num_vertices))
+    # initialize the adjacency matrix A to -infty
     A = np.ones((num_vertices,num_vertices))*np.NINF
+
     for i in range(m):
         for j in range(m):
-            # horizontal
+            # find indices of vertices corresponding to horizontal edges 
             u = g.vs.find(name=str(i)+','+str(j)).index
             v = g.vs.find(name=str(i+1)+','+str(j)).index
 
+            # get edge ids of the edge (u,v)
             eid = g.get_eid(u,v)
+            # t will contain the edge weight
             t = float(g.es[eid]['label'])
             
-            k1 = i*m+j
-            k2 = ((i+1)%m)*m+j
+            # The matrix arranges the vertices in the following order: row1,row2,...
+            # k1 contains the row of the matrix corresponding to vertex (i,j)
+            k1 = vertex_to_adjacency_matrix_element(i,j,m)
+            # k2 contains the column of the matrix corresponding to vertex (i+1,j)
+            # the edge goes from k1 to k2
+            k2 = vertex_to_adjacency_matrix_element(i+1,j,m)
             A[k1][k2] = t
+            # helper keeps track of the place where you have non-zero weights in the adjacency matrix, and importantly, whether or not the edge is horizontal or vertical
             helper[k1][k2] = 1
 
-            # vertical
+            # Same as above, but for VERTICAL edge
             u = g.vs.find(name=str(i)+','+str(j)).index
             v = g.vs.find(name=str(i)+','+str(j+1)).index
 
             eid = g.get_eid(u,v)
             t = float(g.es[eid]['label'])
             
-            k1 = i*m+j
-            k2 = i*m+(j+1)%m
+            k1 = vertex_to_adjacency_matrix_element(i,j,m)
+            k2 = vertex_to_adjacency_matrix_element(i,j+1,m)
             A[k1][k2] = t
             helper[k1][k2] = -1
 
@@ -1144,49 +1188,74 @@ def modify_adj_matrix(A,helper,h):
     modify_adj_matrix takes as input a (periodic) adjacency matrix of edge weights.
     
     It modifies the adjacency matrix by adding h to the horizontal weights and -h to the vertical weights.
+
+    @param A:   adjacency matrix
+    @param helper: tells you where exactly in the matrix there are non-zero entries
+    @param h: new h value
     """
 
-    tmp = A.copy()
+    Anew = A.copy()
 
+    # the helper
     hor = np.where(helper==1)
     ver = np.where(helper==-1)
 
     for i in range(len(hor[0])):
         u,v = hor[0][i],hor[1][i]
-        tmp[u][v] = A[u][v]+h[0]
+        Anew[u][v] = A[u][v]+h[0]
     for i in range(len(ver[0])):
         u,v = ver[0][i],ver[1][i]
-        tmp[u][v] = A[u][v]+h[1]
+        Anew[u][v] = A[u][v]+h[1]
 
-    return tmp
+    return Anew
 
 def add(u,v):
-    if u == np.NINF and v != np.NINF:
-        return np.NINF
-    elif u == np.NINF and v == np.NINF:
+    """
+    Does addition in the max-plus algebra.
+    This involves taking care of infinities carefully. 
+    It uses the convention in Max Plus at Work, Heidergott et al, Ch 1, page 13
+    u + v = np.NINF if any one of them is np.NINF
+
+    Does this function need to be here?
+    """
+    if u == np.NINF or v == np.NINF:
         return np.NINF
     else:
         return u+v
 
 def minus(u,v):
-    if u == np.NINF and v != np.NINF:
-        return np.NINF
-    elif u == np.NINF and v == np.NINF:
+    """
+    Does subtraction in the max plus algebra. This is the only tricky convention. According to Heidergott et al, 2.7, page 39, we set np.NINF - np.NINF = 0. This is where the A^* matrix is defined.
+    """
+
+    if u == np.NINF and v == np.NINF:
         return 0
     else:
         return u-v
 
-def eigenvalue(A,m):
+def maxplus_eigenvalue(A):
+    """
+    Computes max-plus eigenvalue of the square matrix A using Karp's algorithm.
+
+    See page 87, Heidergott et al
+
+    By their convention, A[i,j] = w[j,i]. So we begin by first taking the transpose of the matrix.
+    I do not think this makes a huge difference. A and A^T should have the same eigenvalue.
+
+    Only works for irreducible matrices A
+    """
     # import ipdb; ipdb.set_trace()
-    num_vertices = m**2
+    Atrans = np.transpose(A)
+    num_vertices = len(Atrans)
     
+    # x is a m x (m+1) vector where m = number of vertices
     x = np.ones((num_vertices,num_vertices+1))*np.NINF
     # # choose arbitrary j∈num_vertices and set x(0) = e_j
     j = np.random.randint(0,num_vertices)
     x[j][0] = 0
     # compute x(k) for k=1,...,num_vertices-1
     for i in range(1,num_vertices+1):
-        x[:,i] = maxplus(A,x[:,i-1])
+        x[:,i] = maxplus_matrix_dot_vector(Atrans,x[:,i-1])
     # print(x)
 
     _min = np.zeros(num_vertices)
@@ -1194,19 +1263,47 @@ def eigenvalue(A,m):
         _min[i] = np.min([minus(x[i][num_vertices],x[i][k])/(num_vertices-k) for k in range(num_vertices)])
     return np.max(_min)
 
-def maxplus(arr,v):
+class maxplus_eigenvalue_test(unittest.TestCase):
+    """
+    Tests the maxplus_eigenvalue function on a standard matrix.
+    Note that the maxplus algorithm assumes that the A[i,j] = w(j,i). 
+    So when we call the testcase, we have to give it the transpose of the matrix from Heidergott.
+
+    """
+    def test_on_standard_matrix(self):
+        e = np.NINF
+        # Heidergott et al, Ex 5.1.1
+        A1 = [[e,3,e,1],[2,e,1,e],[1,2,2,e],[e,e,1,e]] 
+        A2 = [[1,2,e,7],[e,3,5,e],[e,4,e,3],[e,2,8,e]]
+        A3 = [[6,2,e,7],[e,3,5,e],[e,4,e,3],[e,2,8,e]]
+        self.assertEqual(maxplus_eigenvalue(np.transpose(A1)),2.5)
+        self.assertEqual(maxplus_eigenvalue(np.transpose(A2)),5.5)
+
+def maxplus_matrix_dot_vector(arr,v):
+    """
+    Matrix times a column vector in the max plus algebra
+    Helps in the maxplus_eigenvalue function
+    """
     x = np.zeros(len(v))
     for i in range(len(x)):
         x[i] = np.max([add(arr[i][k],v[k]) for k in range(len(v))])
 
     return x
 
-def plot_gpl_from_range(g,m,hrange):
+def plot_gpl_from_range(g,m,hrange,save_figure=False):
+    """
+    plot gpl in the specified range of h values
+    save a figure as well, if the named option is set
+
+    Isn't this function written already?
+    """
     A,helper = form_periodic_adj_matrix(g,m)
     x = np.linspace(start=-hrange,stop=hrange,num=1000)
 
-    plt.plot(x,[eigenvalue(g,modify_adj_matrix(A,helper,[h,-h]),m,[h,-h]) for h in x])
-    plt.savefig('m({})_hrange({}).png'.format(m,hrange))
+    plt.plot(x,[maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x])
+
+    if save_figure:
+        plt.savefig('m({})_hrange({}).png'.format(m,hrange))
 
 def perpendicularDistance(x0,x1,u0,u1,v0,v1):
     slope = (v1-u1)/(v0-u0)
@@ -1243,7 +1340,10 @@ def DouglasPeucker(x,arr,epsilon):
     ## Return the result
     return ResultList
 
-def ae(val1,val2,epsilon):
+def almost_equal(val1,val2,epsilon):
+    """
+    checks whether two values are almost equal
+    """
     return True if abs(val1-val2) < epsilon else False
 
 def get_num_facets(x,arr,epsilon=1e-4,use_DP=False):
@@ -1257,13 +1357,13 @@ def get_num_facets(x,arr,epsilon=1e-4,use_DP=False):
             pre2,pre1,curr,post1,post2 = arr[i-2],arr[i-1],arr[i],arr[i+1],arr[i+2]
 
             # could be facet 
-            if not (ae(pre1,curr,epsilon) and ae(curr,post1,epsilon)):
-                if ae(pre1,pre2,epsilon) and ae(post1,post2,epsilon):
+            if not (almost_equal(pre1,curr,epsilon) and almost_equal(curr,post1,epsilon)):
+                if almost_equal(pre1,pre2,epsilon) and almost_equal(post1,post2,epsilon):
                     num += 1
                     i += 2
-                elif not ae(post1,post2,epsilon):
+                elif not almost_equal(post1,post2,epsilon):
                     post3 = arr[i+3]
-                    if not ae(post2,post3,epsilon):
+                    if not almost_equal(post2,post3,epsilon):
                         i += 2
             else:
                 i += 1
@@ -1280,7 +1380,7 @@ def find_bad_index(x,y):
         while i+j < len(x):
             delta1 = (y[i+j]-y[i+j-1])/(x[i+j]-x[i+j-1])
             delta2 = (y[i]-y[i-1])/(x[i]-x[i-1])
-            if ae(delta1,delta2,1e-3):
+            if almost_equal(delta1,delta2,1e-3):
                 j += 1
             else:
                 break
@@ -1308,7 +1408,7 @@ def fine_tuning(h,gpl,A,helper,m):
  
         curr = h[i]
         new_h = [curr-(h[i]-h[i-1])/2]
-        new_eig = [eigenvalue(modify_adj_matrix(A,helper,[new_h[0],-new_h[0]]),m)]
+        new_eig = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[new_h[0],-new_h[0]]),m)]
         to_string(new_h,new_eig)
 
         h = h[0:i]+new_h+h[i:]
@@ -1334,7 +1434,7 @@ def plot_comparison_eig_gpl(N,m):
 
     x = [-1+0.2*i for i in range(11)]
     A, helper = form_periodic_adj_matrix(g,m)
-    y = [eigenvalue(modify_adj_matrix(A,helper,[h,-h]),m) for h in x] #eig
+    y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
 
     plt.plot(x,y,label='eig')
