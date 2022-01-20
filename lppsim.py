@@ -1060,7 +1060,7 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
         
     return arr
 
-def gpl(gpp,h): 
+def gpl(times,N,h): 
     """
     returns gpl given times on the diagonal {(x,y) : x + y = N}
     gpp     :   array containing gpp values diagonal
@@ -1076,8 +1076,8 @@ def gpl(gpp,h):
     
     return np.max(pl)
 
-def plot_pl_time_constant(
-        gpp,
+def plot_pl_time_constant(g,N,
+        times,
         hrange=10,
         plotpoints=100,
         **plot_options):
@@ -1117,20 +1117,19 @@ def printA(
             print(format(arr[i][j],'.4f'),end='\t')
         print()
 
-def vertex_to_adjacency_matrix_element(i,j,m):
+def vertex_to_adjacency_matrix_element(t,m):
     """
     The matrix arranges the vertices in the following order: row1,row2,...
     It keeps track of periodicity in the matrix
-    i:  horizontal coordinate
-    j:  vertical coordinate
+    t:  t = (i,j)
     """
-    return (i%m)*m+j%m
+    return (t[0]%m)*m+t[1]%m
 
 def adjacency_matrix_element_to_vertex(x,m):
     # The matrix arranges the vertices in the following order: row1,row2,...
     # the x coordinate of the vertex is given by the integer part of x/m
     # the y coordinate of the vertex is given by the remainder of x/m
-    return (int(x/m),i%m)
+    return (int(x/m),x%m)
 
 def form_periodic_adj_matrix(g,m):
     """
@@ -1162,10 +1161,10 @@ def form_periodic_adj_matrix(g,m):
             
             # The matrix arranges the vertices in the following order: row1,row2,...
             # k1 contains the row of the matrix corresponding to vertex (i,j)
-            k1 = vertex_to_adjacency_matrix_element(i,j,m)
+            k1 = vertex_to_adjacency_matrix_element((i,j),m)
             # k2 contains the column of the matrix corresponding to vertex (i+1,j)
             # the edge goes from k1 to k2
-            k2 = vertex_to_adjacency_matrix_element(i+1,j,m)
+            k2 = vertex_to_adjacency_matrix_element((i+1,j),m)
             A[k1][k2] = t
             # helper keeps track of the place where you have non-zero weights in the adjacency matrix, and importantly, whether or not the edge is horizontal or vertical
             helper[k1][k2] = 1
@@ -1177,8 +1176,8 @@ def form_periodic_adj_matrix(g,m):
             eid = g.get_eid(u,v)
             t = float(g.es[eid]['label'])
             
-            k1 = vertex_to_adjacency_matrix_element(i,j,m)
-            k2 = vertex_to_adjacency_matrix_element(i,j+1,m)
+            k1 = vertex_to_adjacency_matrix_element((i,j),m)
+            k2 = vertex_to_adjacency_matrix_element((i,j+1),m)
             A[k1][k2] = t
             helper[k1][k2] = -1
 
@@ -1217,7 +1216,7 @@ def add(u,v):
     It uses the convention in Max Plus at Work, Heidergott et al, Ch 1, page 13
     u + v = np.NINF if any one of them is np.NINF
 
-    Does this function need to be here?
+    Does this function need to be here? Jan 20 2022 We can remove this later after discussion with xuchen
     """
     if u == np.NINF or v == np.NINF:
         return np.NINF
@@ -1291,7 +1290,7 @@ def maxplus_matrix_dot_vector(arr,v):
 
     return x
 
-def plot_gpl_from_range(g,m,hrange,save_figure=False):
+def plot_gpl_eigenvalue(g,m,hrange,save_figure=False):
     """
     plot gpl in the specified range of h values
     save a figure as well, if the named option is set
@@ -1428,7 +1427,8 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(g,N,m):
+def plot_comparison_eig_gpl(N,m):
+    g, layout = graphgen(N)
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
     # f = plot_graph(g,layout)
