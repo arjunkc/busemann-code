@@ -1068,7 +1068,7 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     return arr
 
 def gpl(times,N,h): 
-    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
+    transVerts = [[x/N,(N-x)/N] for x in range(0,N)]
     
     hp = [np.dot(h,vert) for vert in transVerts]
     pl = np.array(times)+hp
@@ -1122,8 +1122,8 @@ def form_periodic_adj_matrix(g,m):
             
             k1 = i*m+j
             k2 = ((i+1)%m)*m+j
-            A[k1][k2] = t
-            helper[k1][k2] = 1
+            A[k2][k1] = t
+            helper[k2][k1] = 1
 
             # vertical
             u = g.vs.find(name=str(i)+','+str(j)).index
@@ -1134,8 +1134,8 @@ def form_periodic_adj_matrix(g,m):
             
             k1 = i*m+j
             k2 = i*m+(j+1)%m
-            A[k1][k2] = t
-            helper[k1][k2] = -1
+            A[k2][k1] = t
+            helper[k2][k1] = -1
 
     return np.array(A),np.array(helper)
 
@@ -1327,15 +1327,19 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(N,m):
-    g, layout = graphgen(N)
+def plot_comparison_eig_gpl(g,N,m):
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
+    # f = plot_graph(g,layout)
+    # f.save('graph.png')
 
     x = [-1+0.2*i for i in range(11)]
     A, helper = form_periodic_adj_matrix(g,m)
+    # print(A)
     y = [eigenvalue(modify_adj_matrix(A,helper,[h,-h]),m) for h in x] #eig
+    # print(y)
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
+    # print(y2)
 
     plt.plot(x,y,label='eig')
     plt.plot(x,y2,label='gpl')
