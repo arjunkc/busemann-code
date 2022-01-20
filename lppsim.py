@@ -1068,6 +1068,7 @@ def gpl(gpp,h):
     h       :   2-tuple containing the "tilt" vector for gpl
     """
     transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)] # scaled vertices on diagonal
+    #transVerts = [[x/N,(N-x)/N] for x in range(0,N)]
     
     # uses the formula gpl = sup( gpp(xi) + h . xi) see equation 4.3 in Georgiou et al
     hp = [np.dot(h,vert) for vert in transVerts]
@@ -1427,15 +1428,17 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(N,m):
-    g, layout = graphgen(N)
+def plot_comparison_eig_gpl(g,N,m):
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
+    # f = plot_graph(g,layout)
+    # f.save('graph.png')
 
     x = [-1+0.2*i for i in range(11)]
     A, helper = form_periodic_adj_matrix(g,m)
     y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
+    # print(y2)
 
     plt.plot(x,y,label='eig')
     plt.plot(x,y2,label='gpl')
