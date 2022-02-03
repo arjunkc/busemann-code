@@ -956,11 +956,11 @@ def wtfun_generator(g,N,
         ecount = 2*(N-1)*N
         weights = np.zeros(ecount)
 
-        tempSize = 2*(m-1)*m-2*(m-1)
+        tempSize = 2*m**2
         tempWeight = random_fc(size=tempSize)
     elif graph_shape == 'triangle':
         weights = np.zeros((N-1)*N)
-        sq = 2*(m-1)*m-2*(m-1)
+        sq = 2*m**2
         if use_vertex_weights:
             tempSize = sq // 2
             tempWeight = random_fc(size=tempSize)
@@ -969,8 +969,8 @@ def wtfun_generator(g,N,
             tempWeight = random_fc(size=tempSize)
 
     k = 0
-    for i in range(m-1):
-        for j in range(m-1):
+    for i in range(m):
+        for j in range(m):
             # i,j -> i+1,j
             if graph_shape == 'rectangle':
                 arr = get_idArr(g,i,j,0,m,N)
@@ -1279,6 +1279,31 @@ class maxplus_eigenvalue_test(unittest.TestCase):
         self.assertEqual(maxplus_eigenvalue(np.transpose(A1)),2.5)
         self.assertEqual(maxplus_eigenvalue(np.transpose(A2)),5.5)
 
+    def test_on_gpl_eig(self):
+        N = 1000
+        m = 3
+        g, layout = graphgen(N)
+        wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
+        t = return_times(g,wtfun=wtfun_wrapper) 
+
+        x = [-1+0.2*i for i in range(11)]
+        A, helper = form_periodic_adj_matrix(g,3)
+        y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
+        y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
+
+        diff = [np.abs(y[i]-y2[i]) for i in range(len(y))]
+        error = 0.01
+        if np.max(diff) >= error:
+            print('Max difference between gpl (gpp) and eigenvalue is {} and error is {}'.format(np.max(diff),error))
+
+        # plt.figure()
+        # plt.title('N={}_m={}_maxdiff={}'.format(N,m,np.max(diff)))
+        # plt.plot(x,y,label='eig')
+        # plt.plot(x,y2,label='gpl')
+        # plt.legend()
+        # plt.savefig('N={}_m={}.png'.format(N,m))
+        # plt.clf()
+
 def maxplus_matrix_dot_vector(arr,v):
     """
     Matrix times a column vector in the max plus algebra
@@ -1438,9 +1463,14 @@ def plot_comparison_eig_gpl(N,m):
     A, helper = form_periodic_adj_matrix(g,m)
     y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
+
+    diff = [np.abs(y[i]-y2[i]) for i in range(len(y))]
     # print(y2)
 
+    plt.figure()
+    plt.title('N={}_m={}_maxdiff={}'.format(N,m,np.max(diff)))
     plt.plot(x,y,label='eig')
     plt.plot(x,y2,label='gpl')
     plt.legend()
-    plt.show()
+    plt.savefig('N={}_m={}.png'.format(N,m))
+    plt.clf()
