@@ -953,6 +953,8 @@ def wtfun_generator(g,N,
         m = N + 1
 
     if graph_shape == 'rectangle':
+        # if this is an NxN graph, this is how many edges it will have.
+        # The edges of the box have coordinates (0,0) and (N-1,N-1)
         ecount = 2*(N-1)*N
         weights = np.zeros(ecount)
 
@@ -1094,7 +1096,7 @@ def plot_pl_time_constant(g,N,
 def printA(
         g,
         m,
-        arr):
+        A):
     """
     Designed to print the adjacency matrix of the periodically weighted lattice. We call it A.
     The matrix should have size m^2 x m^2. Each element of the matrix corresponds to a vertex.
@@ -1102,19 +1104,19 @@ def printA(
     print(' ',end='\t')
     # arr is m^2 x m^2 matrix
     # len(arr) = m^2 of course. Why not just use that?
-    for i in range(len(arr)):
+    for i in range(m**2):
         # prints integral part of i/m and the remainder
         # this forms the top row of the array. 
         # it represents coordinates in the lattice graph
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
     print()
-    for i in range(len(arr)):
+    for i in range(m**2):
         # the name contains the vertex it is mapped to
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
-        for j in range(len(arr)):
-            print(format(arr[i][j],'.4f'),end='\t')
+        for j in range(m**2):
+            print(format(A[i][j],'.4f'),end='\t')
         print()
 
 def vertex_to_adjacency_matrix_element(t,m):
@@ -1427,15 +1429,16 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(N,m):
+def plot_comparison_eig_gpl(N,m,plotpoints=100):
     g, layout = graphgen(N)
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
     # f = plot_graph(g,layout)
     # f.save('graph.png')
 
-    x = [-1+0.2*i for i in range(11)]
-    A, helper = form_periodic_adj_matrix(g,m)
+    #x = [-1+0.2*i for i in range(11)]
+    x = np.linspace(-1,1,plotpoints)
+    A, helper = form_periodic_adj_matrix(g,m-1)
     y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
     # print(y2)
@@ -1444,3 +1447,5 @@ def plot_comparison_eig_gpl(N,m):
     plt.plot(x,y2,label='gpl')
     plt.legend()
     plt.show()
+
+    return g,layout,t,A
