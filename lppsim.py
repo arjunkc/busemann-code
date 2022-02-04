@@ -973,9 +973,9 @@ def wtfun_generator(g,N,
         for j in range(m):
             # i,j -> i+1,j
             if graph_shape == 'rectangle':
-                arr = get_idArr(g,i,j,0,m,N)
-            elif graph_shape == 'triangle':
-                arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
+                arr = get_idArr(g,i,j,[1,0],m,N)
+            # elif graph_shape == 'triangle':
+            #     arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
 
             for e in arr:
                 weights[e] = tempWeight[k]
@@ -984,9 +984,9 @@ def wtfun_generator(g,N,
 
             # i,j -> i,j+1
             if graph_shape == 'rectangle':
-                arr = get_idArr(g,i,j,1,m,N)
-            elif graph_shape == 'triangle':
-                arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
+                arr = get_idArr(g,i,j,[0,1],m,N)
+            # elif graph_shape == 'triangle':
+            #     arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
             for e in arr:
                 weights[e] = tempWeight[k]
             k = k+1
@@ -996,7 +996,16 @@ def wtfun_generator(g,N,
 
     return weights
 
-def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
+def is_vertex_existed(N,i,j,graph_shape='rectangle'):
+    if graph_shape == 'rectangle':
+        return True if i >= 0 and j >= 0 and i < N and j < N else False
+    # elif graph_shape == 'triangle':
+    #     return True if i >= 0 and j >=0  and i < N and j < N-1-i else False  
+    else:
+        print('invalid graph shape')
+        return False
+
+def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     """
     returns an array of edge ids such that all edge weights in this array will share the same weight
     The position of the starting vertices of those edges satisfied x = i+p*(m-1) and y = j+p*(m-1)
@@ -1006,58 +1015,33 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     # initialize array saving eids
     arr = []
 
-    lim = math.ceil((N-1)/(m-1))+1
+    lim = math.ceil(N/m)
+    for p in range(lim):
+        for q in range(lim):
+            ux = i+p*(m-1)
+            uy = j+q*(m-1)
 
-    if direction == 0: # horizontal
-        if graph_shape == 'rectangle':
-            xlim = N-1
-            ylim = N
-        elif graph_shape == 'triangle':
-            xlim = N-1-j
-            # ylim = N-1-i
-        # print(xlim,ylim)
-        for p in range(lim):
-            for q in range(lim):
-                x = i+p*(m-1)
-                y = j+q*(m-1)
+            vx,vy = np.add([ux,uy],direction)
 
-                if graph_shape == 'triangle':
-                    ylim = N-1-x
-                # print(xlim,ylim)
-
-                if x < xlim and y < ylim:
-                    xName = str(x)+','+str(y)
-                    yName = str(x+1)+','+str(y)
-                    u = g.vs.find(name=xName).index
-                    v = g.vs.find(name=yName).index
+            if graph_shape == 'rectangle':
+                if is_vertex_existed(N,ux,uy) and is_vertex_existed(N,vx,vy):
+                    uName = str(ux)+','+str(uy)
+                    vName = str(vx+1)+','+str(vy)
+                    u = g.vs.find(name=uName).index
+                    v = g.vs.find(name=vName).index
                     arr.append(g.get_eid(u,v))
                 else:
                     break
-    else: # vertical
-        if graph_shape == 'rectangle':
-            xlim = N
-            ylim = N-1
-        elif graph_shape == 'triangle':
-            # xlim = N-1-i
-            ylim = N-1-i
-
-        for p in range(lim):
-            for q in range(lim):
-                x = i+p*(m-1)
-                y = j+q*(m-1)
-
-                if graph_shape == 'triangle':
-                    xlim = N-1-y
-                
-                if x < xlim and y < ylim:
-                    xName = str(x)+','+str(y)
-                    yName = str(x)+','+str(y+1)
-                    u = g.vs.find(name=xName).index
-                    v = g.vs.find(name=yName).index
+            elif graph_shape == 'triangle':
+                if is_vertex_existed(N,ux,uy,graph_shape='triangle') and is_vertex_existed(N,vx,vy,graph_shape='triangle'):
+                    uName = str(ux)+','+str(uy)
+                    vName = str(vx+1)+','+str(vy)
+                    u = g.vs.find(name=uName).index
+                    v = g.vs.find(name=vName).index
                     arr.append(g.get_eid(u,v))
                 else:
                     break
-        
+    
     return arr
 
 def gpl(times,N,h): 
