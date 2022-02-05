@@ -953,6 +953,8 @@ def wtfun_generator(g,N,
         m = N + 1
 
     if graph_shape == 'rectangle':
+        # if this is an NxN graph, this is how many edges it will have.
+        # The edges of the box have coordinates (0,0) and (N-1,N-1)
         ecount = 2*(N-1)*N
         weights = np.zeros(ecount)
 
@@ -975,7 +977,7 @@ def wtfun_generator(g,N,
             if graph_shape == 'rectangle':
                 arr = get_idArr(g,i,j,[1,0],m,N)
             # elif graph_shape == 'triangle':
-            #     arr = get_idArr(g,i,j,0,m,N,graph_shape='triangle')
+            #     arr = get_idArr(g,i,j,[1,0],m,N,graph_shape='triangle')
 
             for e in arr:
                 weights[e] = tempWeight[k]
@@ -986,7 +988,7 @@ def wtfun_generator(g,N,
             if graph_shape == 'rectangle':
                 arr = get_idArr(g,i,j,[0,1],m,N)
             # elif graph_shape == 'triangle':
-            #     arr = get_idArr(g,i,j,1,m,N,graph_shape='triangle')
+            #     arr = get_idArr(g,i,j,[0,1],m,N,graph_shape='triangle')
             for e in arr:
                 weights[e] = tempWeight[k]
             k = k+1
@@ -1008,12 +1010,17 @@ def is_vertex_existed(N,i,j,graph_shape='rectangle'):
 def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     """
     returns an array of edge ids such that all edge weights in this array will share the same weight
-    The position of the starting vertices of those edges satisfied x = i+p*(m-1) and y = j+p*(m-1)
+
+    (i,j) is a vertex in the periodic box.
+
+    The position of the starting vertices of those edges satisfy x = i+p*(m-1) and y = j+p*(m-1)
     @param direction: distinguish between horizontal and vertical edges, 0 for horinzontal and typically 1 for vertical
     @param m: period
     """
     # initialize array saving eids
     arr = []
+
+    # lim has the max number of times the vertex (0,0) repeats in a box with periodicity m, and size N. Ex. N=3,m=2 gives lim=2. The vertex (0,0) repeats twice, but the vertex (0,1) repeats just once.
 
     lim = math.ceil(N/m)
     for p in range(lim):
@@ -1030,17 +1037,6 @@ def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
                     u = g.vs.find(name=uName).index
                     v = g.vs.find(name=vName).index
                     arr.append(g.get_eid(u,v))
-                else:
-                    break
-            elif graph_shape == 'triangle':
-                if is_vertex_existed(N,ux,uy,graph_shape='triangle') and is_vertex_existed(N,vx,vy,graph_shape='triangle'):
-                    uName = str(ux)+','+str(uy)
-                    vName = str(vx+1)+','+str(vy)
-                    u = g.vs.find(name=uName).index
-                    v = g.vs.find(name=vName).index
-                    arr.append(g.get_eid(u,v))
-                else:
-                    break
     
     return arr
 
@@ -1078,7 +1074,7 @@ def plot_pl_time_constant(g,N,
 def printA(
         g,
         m,
-        arr):
+        A):
     """
     Designed to print the adjacency matrix of the periodically weighted lattice. We call it A.
     The matrix should have size m^2 x m^2. Each element of the matrix corresponds to a vertex.
@@ -1086,19 +1082,19 @@ def printA(
     print(' ',end='\t')
     # arr is m^2 x m^2 matrix
     # len(arr) = m^2 of course. Why not just use that?
-    for i in range(len(arr)):
+    for i in range(m**2):
         # prints integral part of i/m and the remainder
         # this forms the top row of the array. 
         # it represents coordinates in the lattice graph
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
     print()
-    for i in range(len(arr)):
+    for i in range(m**2):
         # the name contains the vertex it is mapped to
         name = str(int(i/m))+','+str(i%m)
         print(name,end='\t')
-        for j in range(len(arr)):
-            print(format(arr[i][j],'.4f'),end='\t')
+        for j in range(m**2):
+            print(format(A[i][j],'.4f'),end='\t')
         print()
 
 def vertex_to_adjacency_matrix_element(t,m):
@@ -1436,15 +1432,16 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(N,m):
+def plot_comparison_eig_gpl(N,m,plotpoints=100):
     g, layout = graphgen(N)
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
     # f = plot_graph(g,layout)
     # f.save('graph.png')
 
-    x = [-1+0.2*i for i in range(11)]
-    A, helper = form_periodic_adj_matrix(g,m)
+    #x = [-1+0.2*i for i in range(11)]
+    x = np.linspace(-1,1,plotpoints)
+    A, helper = form_periodic_adj_matrix(g,m-1)
     y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
 
@@ -1456,5 +1453,8 @@ def plot_comparison_eig_gpl(N,m):
     plt.plot(x,y,label='eig')
     plt.plot(x,y2,label='gpl')
     plt.legend()
+    plt.show()
     plt.savefig('N={}_m={}.png'.format(N,m))
-    plt.clf()
+    #plt.clf()
+
+    return g,layout,t,A
