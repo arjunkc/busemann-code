@@ -1025,15 +1025,15 @@ def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     lim = math.ceil(N/m)
     for p in range(lim):
         for q in range(lim):
-            ux = i+p*(m-1)
-            uy = j+q*(m-1)
+            ux = i+p*m
+            uy = j+q*m
 
             vx,vy = np.add([ux,uy],direction)
 
             if graph_shape == 'rectangle':
                 if is_vertex_existed(N,ux,uy) and is_vertex_existed(N,vx,vy):
                     uName = str(ux)+','+str(uy)
-                    vName = str(vx+1)+','+str(vy)
+                    vName = str(vx)+','+str(vy)
                     u = g.vs.find(name=uName).index
                     v = g.vs.find(name=vName).index
                     arr.append(g.get_eid(u,v))
@@ -1453,7 +1453,7 @@ def plot_comparison_eig_gpl(N,m,plotpoints=100):
     plt.plot(x,y,label='eig')
     plt.plot(x,y2,label='gpl')
     plt.legend()
-    plt.show()
+    # plt.show()
     plt.savefig('N={}_m={}.png'.format(N,m))
     #plt.clf()
 
