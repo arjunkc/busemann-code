@@ -83,6 +83,14 @@ To **save the data** to a python shelf file
 lppsim.save_to_file(vars_to_save={'times':t,'mywtfun':mywtfun,'N':5000},override_filename='occupation times uniform 5000 x 5000 grid') 
 ```
 
+## [periodic problem]
+
+To simply compare the eigenvalue method versus the passage times > gpp > gpl plots, run
+
+    plot_periodic_eigenvalue_vs_gpl(10,3)
+
+which will produce a plot with a nice legend. You can also have the graph saved and so on.
+
 # Requirements
 
 1.  cython

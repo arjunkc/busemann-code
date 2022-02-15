@@ -26,6 +26,9 @@ import unittest
 # traceback
 import traceback
 
+# debugging
+import ipdb
+
 # import cython
 # import pyximport; pyximport.install()
 # numpy_path = np.get_include()
@@ -40,6 +43,8 @@ try:
     dbg
 except:
     dbg = 0
+
+data_dir = 'generated_data'
 
 default_svs = [(0,0),(1,0),(1,0),(2,0)]
 
@@ -138,7 +143,10 @@ def plot_graph(g,graphlayout=None,**kwargs):
         # default layout is a grid.
         graphlayout = g.layout_fruchterman_reingold()
 
-    width = height = len(g.vs)*20
+    # target size = 800x800
+    target_size = 800
+    #width = height = len(g.vs)*multiplier
+    width = height = 800
     kwargs["bbox"] = (width, height)
     kwargs["margin"] = 40
         
@@ -998,7 +1006,7 @@ def wtfun_generator(g,N,
 
     return weights
 
-def is_vertex_existed(N,i,j,graph_shape='rectangle'):
+def is_vertex_in_box(N,i,j,graph_shape='rectangle'):
     if graph_shape == 'rectangle':
         return True if i >= 0 and j >= 0 and i < N and j < N else False
     # elif graph_shape == 'triangle':
@@ -1009,6 +1017,8 @@ def is_vertex_existed(N,i,j,graph_shape='rectangle'):
 
 def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
     """
+    Helped function for periodic weights.
+
     returns an array of edge ids such that all edge weights in this array will share the same weight
 
     (i,j) is a vertex in the periodic box.
@@ -1031,7 +1041,7 @@ def get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
             vx,vy = np.add([ux,uy],direction)
 
             if graph_shape == 'rectangle':
-                if is_vertex_existed(N,ux,uy) and is_vertex_existed(N,vx,vy):
+                if is_vertex_in_box(N,ux,uy) and is_vertex_in_box(N,vx,vy):
                     uName = str(ux)+','+str(uy)
                     vName = str(vx)+','+str(vy)
                     u = g.vs.find(name=uName).index
@@ -1121,6 +1131,8 @@ def form_periodic_adj_matrix(g,m):
     """
 
     num_vertices = m**2
+
+    #ipdb.set_trace()
 
     # form a helper matrix with 0s in it.
     # helper keeps track of which entries of the (sparse) adjacency matrix have an element in it
@@ -1281,7 +1293,7 @@ class maxplus_eigenvalue_test(unittest.TestCase):
         # plt.plot(x,y,label='eig')
         # plt.plot(x,y2,label='gpl')
         # plt.legend()
-        # plt.savefig('N={}_m={}.png'.format(N,m))
+        # plt.savefig('periodic gpl versus eigenvalue test N={}_m={}.png'.format(N,m))
         # plt.clf()
 
 def maxplus_matrix_dot_vector(arr,v):
@@ -1432,8 +1444,24 @@ def dgpl(h,gpl):
 
     return delta
 
-def plot_comparison_eig_gpl(N,m,plotpoints=100):
-    g, layout = graphgen(N)
+def plot_periodic_eigenvalue_vs_gpl(N,
+        m,
+        plotpoints=100,
+        g=None
+        ):
+    """
+    plots comparing
+    1) periodic lpp gpl computed via forming a large NxN box of mxm weights, and then computing passage times, gpp, and then legendre transforming to find gpl
+    2) eigenvalue of the periodic adjacency matrix
+
+    @params
+    plotpoints = number of points to plot in comparison plot
+    g = pass existing graph to it
+    """
+
+    if g == None:
+        g, layout = graphgen(N)
+
     wtfun_wrapper = lambda **x: wtfun_generator(g,N,periodic_weights=True,period=m,**x)
     t = return_times(g,wtfun=wtfun_wrapper) 
     # f = plot_graph(g,layout)
@@ -1441,20 +1469,26 @@ def plot_comparison_eig_gpl(N,m,plotpoints=100):
 
     #x = [-1+0.2*i for i in range(11)]
     x = np.linspace(-1,1,plotpoints)
-    A, helper = form_periodic_adj_matrix(g,m-1)
-    y = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
+    A, helper = form_periodic_adj_matrix(g,m)
+    y1 = [maxplus_eigenvalue(modify_adj_matrix(A,helper,[h,-h])) for h in x] #eig
     y2 = [gpl(times_on_diagonal(g,N,t),N,[h,-h]) for h in x] #gpl
 
-    diff = [np.abs(y[i]-y2[i]) for i in range(len(y))]
+    diff = [np.abs(y1[i]-y2[i]) for i in range(len(y1))]
     # print(y2)
 
     plt.figure()
     plt.title('N={}_m={}_maxdiff={}'.format(N,m,np.max(diff)))
-    plt.plot(x,y,label='eig')
+    plt.plot(x,y1,label='eig')
     plt.plot(x,y2,label='gpl')
     plt.legend()
     # plt.show()
-    plt.savefig('N={}_m={}.png'.format(N,m))
+    plt.savefig(data_dir + '/' + 'periodic_gpl_versus_eigenvalue N={}_m={}.png'.format(N,m))
     #plt.clf()
 
-    return g,layout,t,A
+    try:
+        # if layout was generated, return it
+        layout
+        return g,layout,t,A,x,y1,y2
+    except:
+        # otherwise g was passed to the function, so no need to return it
+        return t,A,x,y1,y2
