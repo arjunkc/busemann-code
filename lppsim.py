@@ -23,20 +23,24 @@ import matplotlib.pyplot as plt
 # traceback
 import traceback
 
-# import cython
-# import pyximport; pyximport.install()
-# numpy_path = np.get_include()
+import cython
+import pyximport; pyximport.install()
+numpy_path = np.get_include()
 # os.environ['CFLAGS'] = "-I" + numpy_path
-# pyximport.install(setup_args={"include_dirs":numpy_path})
-# from compiled import * 
-# from compiled import *
+pyximport.install(setup_args={"include_dirs":numpy_path})
+from compiled import * 
+import polymer
 
-exec(open('compiled.pyx').read())
+#exec(open('compiled.pyx').read())
 
 try:
     dbg
 except:
     dbg = 0
+
+if dbg == 2:
+   import ipdb; ipdb.set_trace() 
+
 
 default_svs = [(0,0),(1,0),(1,0),(2,0)]
 
@@ -58,10 +62,10 @@ def lpp_num_of_vertices(g,graph_shape='rectangle'):
     # god help you if do not get an integer
 
     if graph_shape == 'rectangle':
-        return math.isqrt(g.vcount())
+        return math.sqrt(g.vcount())
     elif graph_shape == 'triangle':
         # solve N(N+1)/2 = v
-        return (math.isqrt(8*g.vcount() + 1)-1) // 2
+        return (math.sqrt(8*g.vcount() + 1)-1) // 2
 
 def graphgen(N,directed=True,noigraph_gen=False,return_layout_as_object=True,graph_shape='rectangle'):
     """
@@ -1067,23 +1071,30 @@ def  get_idArr(g,i,j,direction,m,N,graph_shape='rectangle'):
         
     return arr
 
-
-def gpl(g,N,times,h): 
-    pp = times_on_diagonal(g,N,times)
-    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)]
+def gpl(times,N,h): 
+    """
+    returns gpl given times on the diagonal {(x,y) : x + y = N}
+    times   :   array of times on the diagonal
+    N       :   grid size
+    h       :   2-tuple containing the "tilt" vector for gpl
+    """
+    transVerts = [[x/N,(N-1-x)/N] for x in range(0,N)] # scaled vertices on diagonal
     
+    # uses the formula gpl = sup( gpp(xi) + h . xi) see equation 4.3 in Georgiou et al
     hp = [np.dot(h,vert) for vert in transVerts]
-    pl = np.array(pp)+hp
+    pl = np.array(times)+hp
     
     return np.max(pl)
 
-def plot_pl_time_constant(g,N,
+def plot_pl_time_constant(
         times,
-        hrange=100,
+        N,
+        hrange=10,
+        plotpoints=100,
         **plot_options):
         
-    x = np.linspace(-hrange,hrange,4*hrange)
-    y = [gpl(g,N,times,[h,-h]) for h in x]
+    x = np.linspace(-hrange,hrange,plotpoints)
+    y = [gpl(times,N,[h,-h]) for h in x]
 
     plt.plot(x,y)
 
@@ -1136,7 +1147,7 @@ def construct_adjacency_matrix(g,m,h,beta=np.Inf):
                 t = float(g.es[eid]['label'])
                 
                 A[i*m+j][i*m+(j+1)%m] = t+h[1]
-    elif beta > 0 && beta < np.Inf:
+    elif beta > 0 and beta < np.Inf:
         A = np.zeros((num_vertices,num_vertices))
 
         for i in range(m):
@@ -1163,8 +1174,7 @@ def construct_adjacency_matrix(g,m,h,beta=np.Inf):
 
     # printA(g,m,A)
 
-
-def eigenvalue(g,m,h,beta=np.Inf)):
+def eigenvalue(g,m,h,beta=np.Inf):
     num_vertices = m**2
     # print(num_vertices)
 
@@ -1207,9 +1217,8 @@ def eigenvalue(g,m,h,beta=np.Inf)):
         for i in range(num_vertices+1):
             _min[i] = np.min([(x[k][-1]-x[k][i])/(num_vertices-k) for k in range(num_vertices)])
         return np.max(_min)
-    elif beta > 0 && beta < np.Inf:
+    elif beta > 0 and beta < np.Inf:
         pass 
-
 
 def maxplus(arr,v):
     x = np.zeros(len(v))

@@ -11,6 +11,7 @@ def return_partition_fn(
         N,
         wtfun=np.random.uniform,
         wts=None,
+        wt_type = 'vertex'
         samples=1,
         beta=1,
         ):
@@ -19,9 +20,9 @@ def return_partition_fn(
 
     So the graph shape is horizontal by default. 
 
-    Will return gpp by default since 
+    Use a wrapper for wtfun if you want vertex weights.
 
-    Use a wrapper for wtfun if you want vertex weights
+    wt_type : 'vertex' or 'edge' to implement
     """
 
     # number of weights needed = sum of elements in each off diagonal in triangle
@@ -30,7 +31,7 @@ def return_partition_fn(
     try:
         if wts == None:
             # allows you to use the same weight vector for all matrices
-            wts = wtfun(size=num_wts)
+            wts = wtfun(size=num_wts*samples)
     except:
         pass
 
@@ -40,7 +41,8 @@ def return_partition_fn(
 
     for i in range(samples):
         # initalize partition function
-        z = 1/2* np.array([np.exp(wts[0] * beta )])
+        # removed 1/2
+        z = np.array([np.exp(wts[0] * beta )])
         # remove first weight
         wts = wts[1::]
         for j in np.arange(1,N):

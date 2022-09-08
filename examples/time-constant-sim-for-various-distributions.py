@@ -1,4 +1,5 @@
 # requires lz4 for compression. comment out line if necessary
+import lppsim,datetime
 import time,csv,subprocess
 start = time.time()
 
@@ -7,6 +8,12 @@ lppsim.dbg=1
 print('Starting at ',time.asctime())
 N = 8000
 shape='triangle'
+
+# these variables control the output of the script
+save_data = True
+plot_figures = True
+
+#import ipdb; ipdb.set_trace()
 
 try:
     # g or layout may not even be defined
@@ -22,11 +29,9 @@ savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/gener
 
 times = []
 pvals = [0.3,0.5,0.7]
-#pvals = [0.3,0.5]
 wtfuns = []
 
 for p in pvals:
-    #import ipdb; ipdb.set_trace()
     # note the p=p construct that creates a localizes p, otherwise the array will all contain a lambda with a reference to the last value of p
     wtfuns.append(('bernoulli p='+str(p),lambda p=p,**x: np.random.binomial(1,p,**x)))
 
@@ -59,7 +64,7 @@ for wtfun in wtfuns:
 
 
     # plot and compare with interface
-    if not dry_run:
+    if not dry_run and plot_figures:
         plt.figure()
         x,times_diag = lppsim.plot_time_constant(g,wtfun[1],N,t,compare_with_exponential=True) 
         times.append(times_diag)
