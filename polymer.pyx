@@ -2,26 +2,34 @@
 
 import numpy as np
 
-def new_partition_vector(z,wt_vector):
-    z = (np.append([0],z) + np.append(z,0) ) * wt_vector
+def new_partition_vector(z,wt_vector,q,scaled=False):
+    """
+    scaled = True means that it will return a scaled probability vector instead.
+    """
+    z = (q*np.append([0],z) + (1-q)*np.append(z,0) ) * wt_vector
     #z = (np.append([0],z) + np.append(z,0) ) 
-    return z
+    if scaled:
+        # if used as intended, sum(z) will be the ratio of sum(z_n)/sum(z_{n-1})
+        return [z/sum(z),sum(z)]
+    else:
+        return z
 
 def return_partition_fn(
         N,
         wtfun=np.random.uniform,
         wts=None,
-        wt_type = 'vertex'
+        wt_type = 'vertex',
         samples=1,
+        full_history=False,
         beta=1,
+        q=1/2,
         ):
     """
     Will return an array of partition functions corresponding to partition functions on the diagonal of a grid.
 
-    So the graph shape is horizontal by default. 
+    The graph shape is triangular by default. 
 
-    Use a wrapper for wtfun if you want vertex weights.
-
+    full_history: return the full triangular array of the partition function
     wt_type : 'vertex' or 'edge' to implement
     """
 
@@ -35,27 +43,35 @@ def return_partition_fn(
     except:
         pass
 
-    avgtimes = np.zeros(N) # contains the averaged passage time to the final hypotenuse of the triangular graph 
-
     #import ipdb; ipdb.set_trace()
+    if full_history:
+        avgz = np.zeros(N)
+    else:
+        avgz = np.zeros(N) # contains the averaged passage time to the final hypotenuse of the triangular graph 
+        avglogsumz = 0 #contains log of partition function (sum of z along diagonal)
+
+
 
     for i in range(samples):
         # initalize partition function
         # removed 1/2
         z = np.array([np.exp(wts[0] * beta )])
+        logsumz = np.log(sum(z))
         # remove first weight
         wts = wts[1::]
         for j in np.arange(1,N):
-            wt_vector = 1/2*np.exp( wts[0:j+1] * beta )
-            z = new_partition_vector(z,wt_vector)
+            wt_vector = np.exp( wts[0:j+1] * beta )
+            # getting scaled partition function 
+            z,c = new_partition_vector(z,wt_vector,q,scaled=True)
+            logsumz = logsumz + np.log(c)
             # pop previously used weights
             wts = wts[j+1::]
 
         # flatten times list using chain so that it is a single list
-        avgtimes = avgtimes + z /samples
+        avgz = avgz + z /samples
+        avglogsumz = avglogsumz + logsumz/samples
 
     # divide by samples to get an average
-
-    return avgtimes
+    return avgz, avglogsumz
 
 

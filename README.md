@@ -9,6 +9,16 @@ The graph is a $N \times N$ grid. $N$ is a global variable that can be set. You 
 
 # To run this code
 
+## Build cython
+
+In the code directory, run
+
+```
+    python3 setup.py build_ext --inplace
+```
+
+## lppsim
+
 Either 
 
     import lppsim
