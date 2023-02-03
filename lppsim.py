@@ -24,14 +24,10 @@ import matplotlib.pyplot as plt
 import traceback
 
 # import cython
-# import pyximport; pyximport.install()
-# numpy_path = np.get_include()
-# os.environ['CFLAGS'] = "-I" + numpy_path
-# pyximport.install(setup_args={"include_dirs":numpy_path})
-# from compiled import * 
-# from compiled import *
+import pyximport; pyximport.install()
+from compiled import *
 
-exec(open('compiled.pyx').read())
+#exec(open('compiled.pyx').read())
 
 try:
     dbg
@@ -377,7 +373,7 @@ def plot_shape_pyplot(g,wtfun,N,times,
     returns plots using the igraph library to plot graphs.
     """
 
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
 
     global dbg
 
