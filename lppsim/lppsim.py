@@ -153,6 +153,7 @@ def plot_graph(g,graphlayout=None,**kwargs):
     target_size = 800
     #width = height = len(g.vs)*multiplier
     width = height = 800
+
     kwargs["bbox"] = (width, height)
     kwargs["margin"] = 40
         

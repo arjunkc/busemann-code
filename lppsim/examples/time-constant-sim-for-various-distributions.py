@@ -1,5 +1,7 @@
 # requires lz4 for compression. comment out line if necessary
+import lppsim
 import time,csv,subprocess
+import matplotlib.pyplot as plt
 start = time.time()
 
 dry_run=False
@@ -7,22 +9,23 @@ lppsim.dbg=1
 print('Starting at ',time.asctime())
 N = 10
 shape='triangle'
+save_data = False
 
 try:
     # g or layout may not even be defined
     if lppsim.lpp_num_of_vertices(g,graph_shape=shape) != N:
         print('N and g do not match')
-        #g,layout = lppsim.graphgen(N,graph_shape=shape)
+        g,layout = lppsim.graphgen(N,graph_shape=shape)
 except: 
     # if N is not the correct number for the graph
     print('N and g do not match')
-    #g,layout = lppsim.graphgen(N,graph_shape=shape)
+    g,layout = lppsim.graphgen(N,graph_shape=shape)
 
 savedir = '/mnt/Core/Research_Work/First_Passage_Percolation/busemann-code/generated-data/'
 
 times = []
-pvals = [0.8]
-#pvals = [0.3,0.5]
+#pvals = [0.3,0.5,0.7]
+pvals = [0.8,0.9]
 wtfuns = []
 
 for p in pvals:
@@ -31,12 +34,12 @@ for p in pvals:
     wtfuns.append(('bernoulli p='+str(p),lambda p=p,**x: np.random.binomial(1,p,**x)))
 
 # other distributions 
-wtfuns = wtfuns + [('uniform',np.random.uniform),
-                   ('lognormal',np.random.lognormal),
-                   ('exponential',np.random.exponential),
-                   ('chisquared k=0.5',lambda **x: np.random.chisquare(0.5,**x)),
-                   ('chisquared k=1.5',lambda **x: np.random.chisquare(1.5,**x))
-                   ]
+#wtfuns = wtfuns + [('uniform',np.random.uniform),
+                   #('lognormal',np.random.lognormal),
+                   #('exponential',np.random.exponential),
+                   #('chisquared k=0.5',lambda **x: np.random.chisquare(0.5,**x)),
+                   #('chisquared k=1.5',lambda **x: np.random.chisquare(1.5,**x))
+                   #]
 
 
 # set figure parameters
@@ -61,20 +64,20 @@ for wtfun in wtfuns:
     # plot and compare with interface
     if not dry_run:
         plt.figure()
-        x,times_diag = lppsim.plot_time_constant(g,wtfun[1],N,t,compare_with_exponential=True) 
+        x,times_diag = lppsim.plot_time_constant(g,wtfun[1],N,t) 
         times.append(times_diag)
 
         # arbitrarily set
         plt.savefig(savedir + 'time constant ' +
-                wtfun[0] + ' versus exponential ' +
+                wtfun[0] + ' ' +
                 str(N) + 'x' + str(N) + ' grid.svg')
         plt.savefig(savedir + 'time constant ' +
-                wtfun[0] + ' versus exponential ' +
+                wtfun[0] + ' ' +
                 str(N) + 'x' + str(N) + ' grid.pdf')
 
 
 # finally try to save all the things
-if not dry_run:
+if not dry_run and save_data:
     lppsim.save_to_file(vars_to_save={'x':x,'times':times,'wtfuns':[x[0] for x in wtfuns]},
             override_filename=savedir + 'passage time for various weight functions on main antidiagonal ' +
             datetime.datetime.today().strftime('%Y-%m-%dT%H-%M') + '.shelf')
